@@ -41,7 +41,7 @@ void ChargeOp::run(){
         if (millis() > retryTouchDockSpeedTime){                            
             retryTouchDockSpeedTime = millis() + 1000;
             motor.enableTractionMotors(true); // allow traction motors to operate                               
-            motor.setLinearAngularSpeed(0.05, 0);
+            motor.setLinearAngularSpeed(0.2, 0);
         }
         if (retryTouchDock){
             if (millis() > retryTouchDockStopTime) {

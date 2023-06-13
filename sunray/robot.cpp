@@ -826,7 +826,7 @@ bool detectObstacleRotation(){
         return true;      
       }
     }
-    if (diffIMUWheelYawSpeedLP > 10.0/180.0 * PI) {  // yaw speed difference between wheels and IMU more than 8 degree/s, e.g. due to obstacle
+    if (diffIMUWheelYawSpeedLP > 15.0/180.0 * PI) {  // yaw speed difference between wheels and IMU more than 8 degree/s, e.g. due to obstacle
       CONSOLE.println("yaw difference between wheels and IMU for requested rotation => assuming obstacle");            
       triggerObstacleRotation();
       return true;            
