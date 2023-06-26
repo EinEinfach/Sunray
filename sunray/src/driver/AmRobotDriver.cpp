@@ -128,7 +128,8 @@ void OdometryLeftISR(){
   #else
     motorLeftTicksTimeout = millis() + 1;
   #endif
-  odomTicksLeft++;    
+  odomTicksLeft++;   
+  asm("dsb"); 
 }
 
 void OdometryRightISR(){			
@@ -143,7 +144,8 @@ void OdometryRightISR(){
   #else
     motorRightTicksTimeout = millis() + 1;
   #endif
-  odomTicksRight++;        
+  odomTicksRight++; 
+  asm("dsb");       
   
   #ifdef TEST_PIN_ODOMETRY
     testValue = !testValue;
