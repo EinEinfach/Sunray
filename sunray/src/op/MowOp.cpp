@@ -28,7 +28,9 @@ void MowOp::begin(){
     CONSOLE.println("OP_MOW");      
     motor.enableTractionMotors(true); // allow traction motors to operate         
     motor.setLinearAngularSpeed(0,0);      
-    motor.setMowState(false);                
+    if (((previousOp != &escapeReverseOp) && (previousOp != &escapeForwardOp)) || (DISABLE_MOW_MOTOR_AT_OBSTACLE))  motor.setMowState(false);              
+    battery.setIsDocked(false);                
+    timetable.setMowingCompletedInCurrentTimeFrame(false);                
 
     // plan route to next target point 
 
@@ -84,6 +86,17 @@ void MowOp::run(){
     trackLine(true); 
     detectSensorMalfunction();    
     battery.resetIdle();
+    
+    if (timetable.shouldAutostopNow()){
+        if (DOCKING_STATION){
+            CONSOLE.println("TIMETABLE - DOCKING");
+            dockOp.setInitiatedByOperator(false);
+            changeOp(dockOp);
+        } else {
+            CONSOLE.println("TIMETABLE - IDLE");
+            changeOp(idleOp);
+        }
+    }
 }
 
 void MowOp::onRainTriggered(){
@@ -91,7 +104,11 @@ void MowOp::onRainTriggered(){
         CONSOLE.println("RAIN TRIGGERED");
         stateSensor = SENS_RAIN;
         dockOp.dockReasonRainTriggered = true;
-        dockOp.dockReasonRainAutoStartTime = millis() + 60000 * 60; // try again after one hour 
+        #ifdef DRV_SIM_ROBOT
+            dockOp.dockReasonRainAutoStartTime = millis() + 60000 * 3; // try again after 3 minutes 
+        #else
+            dockOp.dockReasonRainAutoStartTime = millis() + 60000 * 60; // try again after one hour 
+        #endif
         dockOp.setInitiatedByOperator(false);
         changeOp(dockOp);              
     }
@@ -114,6 +131,11 @@ void MowOp::onBatteryLowShouldDock(){
     changeOp(dockOp);
 }
 
+void MowOp::onTimetableStopMowing(){        
+}
+
+void MowOp::onTimetableStartMowing(){        
+}
 
 void MowOp::onObstacle(){
     CONSOLE.println("triggerObstacle");      
@@ -246,6 +268,7 @@ void MowOp::onKidnapped(bool state){
 
 void MowOp::onNoFurtherWaypoints(){
     CONSOLE.println("mowing finished!");
+    timetable.setMowingCompletedInCurrentTimeFrame(true);
     if (!finishAndRestart){             
         if (DOCKING_STATION){
             dockOp.setInitiatedByOperator(false);

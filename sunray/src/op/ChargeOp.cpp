@@ -78,6 +78,8 @@ void ChargeOp::run(){
                 nextConsoleDetailsTime = millis() + 30000;
                 CONSOLE.print("ChargeOp: charging completed (DOCKING_STATION=");
                 CONSOLE.print(DOCKING_STATION);
+                CONSOLE.print(", battery.isDocked=");
+                CONSOLE.print(battery.isDocked());
                 CONSOLE.print(", dockOp.initiatedByOperator=");
                 CONSOLE.print(dockOp.initiatedByOperator);        
                 CONSOLE.print(", maps.mowPointsIdx=");
@@ -87,19 +89,27 @@ void ChargeOp::run(){
                 CONSOLE.print(", dockOp.dockReasonRainTriggered=");
                 CONSOLE.print(dockOp.dockReasonRainTriggered);
                 CONSOLE.print(", dockOp.dockReasonRainAutoStartTime(min remain)=");
-                CONSOLE.print( ((int)(dockOp.dockReasonRainAutoStartTime - millis())) / 60000 );                
+                CONSOLE.print( ((int)(dockOp.dockReasonRainAutoStartTime - millis())) / 60000 );                                
+                CONSOLE.print(", timetable.mowingCompletedInCurrentTimeFrame=");                
+                CONSOLE.print(timetable.mowingCompletedInCurrentTimeFrame);
+                CONSOLE.print(", timetable.mowingAllowed=");                
+                CONSOLE.print(timetable.mowingAllowed());
+                CONSOLE.print(", finishAndRestart=");                
+                CONSOLE.print(finishAndRestart);                
                 CONSOLE.println(")");
             }
-            if ((DOCKING_STATION) && (!dockOp.initiatedByOperator)) {
-                if (maps.mowPointsIdx > 0){  // if mowing not completed yet
-                    if ( (DOCK_AUTO_START) && ((!dockOp.dockReasonRainTriggered) || (millis() > dockOp.dockReasonRainAutoStartTime)) ) { // automatic continue mowing allowed?
-                        CONSOLE.println("DOCK_AUTO_START: will automatically continue mowing now");
-                        changeOp(mowOp); // continue mowing
-                    }
-                }
+            if (timetable.shouldAutostartNow()){
+                CONSOLE.println("DOCK_AUTO_START: will automatically continue mowing now");
+                changeOp(mowOp); // continue mowing                                                    
             }
         }
     }        
+}
+
+void ChargeOp::onTimetableStopMowing(){        
+}
+
+void ChargeOp::onTimetableStartMowing(){        
 }
 
 void ChargeOp::onChargerDisconnected(){
@@ -113,7 +123,7 @@ void ChargeOp::onChargerDisconnected(){
         maps.setIsDocked(false);
         changeOp(idleOp);    
     }
-};
+}
 
 void ChargeOp::onBadChargingContactDetected(){
     if ((DOCKING_STATION) && (DOCK_RETRY_TOUCH)) {    
