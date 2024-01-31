@@ -671,6 +671,7 @@ bool robotShouldMove(){
   return ( fabs(motor.linearSpeedSet) > 0.001 );
 }
 
+
 bool robotShouldMoveForward(){
    return ( motor.linearSpeedSet > 0.001 );
 }

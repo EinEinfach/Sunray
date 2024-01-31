@@ -98,6 +98,15 @@ sudo apt-get -y install cmake
 sudo apt-get -y install libbluetooth-dev
 ```
 
+## How to use more robust Bit-bangling-based instead ARM-based I2C driver on a Raspberry PI (OS Lite 64 bit, Debian Bullseye)
+The Raspberry CPU-based I2C driver has certain issues (e.g. missing clock stretching for BNO055, missing SCL recovery in noisy environment etc.) You can switch from the Raspberry ARM-I2C-driver to a more robust software-based driver (aka 'bit-bangling') like this:
+1. Run 'sudo raspi-config' and disable the ARM I2C driver
+2. Run 'sudo nano /boot/config.txt' and add this line to activate the software-based I2C driver:
+dtoverlay=i2c-gpio,bus=1,i2c_gpio_sda=2,i2c_gpio_scl=3
+3. Reboot ('sudo reboot')
+4. Verify the I2C bus is working (e.g. a MPU 6050 IMU should be detected at address 69): 
+sudo i2cdetect -y 1
+
 ## How to compile 'OpenOCD' on a Raspberry PI (OS Lite 64 bit, Debian Bullseye)
 OpenOCD is used to flash the Alfred MCU firmware via GPIO interface (SWD emulation). Run this in your 'pi' home folder. The compiled binary ('openocd') can be found in folder 'src'. The binary will be called by the flash script ('~/sunray_install/flash.sh') to flash the Alfred MCU firmware. 
 ```
