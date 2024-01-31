@@ -17,6 +17,7 @@ from ina226 import INA226
 VER = "Landrumower RPI Pico 1.0.0"
 
 # pin definition
+pinRain = ADC(Pin(28))
 pinLift1 = Pin(20, Pin.IN, Pin.PULL_UP)
 pinBumperX = Pin(18, Pin.IN, Pin.PULL_UP)
 pinBumperY = Pin(19, Pin.IN, Pin.PULL_UP)
@@ -264,6 +265,10 @@ def readSensors() -> None:
         batVoltageLP = 0
 
     # rain 
+    w = 0.99
+    rain = pinRain.read_u16()
+    rainLP = w * rainLP + (1 - w) * rain
+    raining = (((rainLP * 100) / 65535) < 50)
 
     # lift
     liftLeft = pinLift1.value()
@@ -279,9 +284,6 @@ def readSensors() -> None:
     batteryTemp = 20 
     ovCheck = False 
     motorMowFault = False
-    rain = 0
-    rainLP = 0
-    raining = (rainLP > 50)
 
 def readMotorCurrent() -> None:
     global nextMotorSenseTime
