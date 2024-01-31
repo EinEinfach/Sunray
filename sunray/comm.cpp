@@ -598,7 +598,8 @@ void cmdSummary(){
     s += "-";
     s += battery.chargingCurrent;
   } else {
-    s += motor.motorsSenseLP;
+    //s += motor.motorsSenseLP;
+    s += battery.chargingCurrent;
   }
   s += ",";
   s += gps.numSVdgps;  

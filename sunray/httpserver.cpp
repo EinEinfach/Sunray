@@ -19,6 +19,7 @@
 #include "RingBuffer.h"
 #include "timetable.h"
 
+//#define VERBOSE 1
 
 // wifi client
 WiFiEspClient wifiClient;

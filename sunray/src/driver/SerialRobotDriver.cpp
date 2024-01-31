@@ -62,69 +62,7 @@ void SerialRobotDriver::begin(){
 	  robotID = p.readString();    
     robotID.trim();
     
-    CONSOLE.println("ioboard init");
-
-    // IMU/fan power-on code (Alfred-PCB-specific) 
-
-    // switch-on IMU via port-expander PCA9555     
-    setImuPowerState(true);
     
-    // switch-on fan via port-expander PCA9555     
-    setFanPowerState(true);
-    
-    // select IMU via multiplexer TCA9548A 
-    ioI2cMux(MUX_I2C_ADDR, SLAVE_IMU_MPU, true);  // Alfred dev PCB with buzzer
-    ioI2cMux(MUX_I2C_ADDR, SLAVE_BUS0, true); // Alfred dev PCB without buzzer    
-
-    // select EEPROM via multiplexer TCA9548A 
-    ioI2cMux(MUX_I2C_ADDR, SLAVE_EEPROM, true);  
-
-    // select ADC via multiplexer TCA9548A 
-    ioI2cMux(MUX_I2C_ADDR, SLAVE_ADC, true);
-    
-    // buzzer test
-    if (false){
-      CONSOLE.println("buzzer test");    
-      ioExpanderOut(EX2_I2C_ADDR, EX2_BUZZER_PORT, EX2_BUZZER_PIN, true);
-      delay(500);
-      ioExpanderOut(EX2_I2C_ADDR, EX2_BUZZER_PORT, EX2_BUZZER_PIN, false);    
-    }
-
-    // LEDs
-    CONSOLE.println("turning LEDs green");
-    if (!setLedState(1, true, false)){
-      CONSOLE.println("LED panel communication failed - assuming no LED panel installed");
-    }
-    setLedState(2, true, false);
-    setLedState(3, true, false);
-  
-    // start ADC
-    CONSOLE.println("starting ADC");    
-    ioAdcStart(ADC_I2C_ADDR, false, true);
-
-    // ADC test    
-    if (true){    
-      for (int idx=1; idx < 9; idx++){
-        ioAdcMux(idx);            
-        ioAdcTrigger(ADC_I2C_ADDR);
-        delay(5);
-        float v = ioAdc(ADC_I2C_ADDR);
-        CONSOLE.print("ADC S");
-        CONSOLE.print(idx);
-        CONSOLE.print("=");
-        CONSOLE.println(v);   
-      }
-    }    
-
-    // EEPROM test
-    if (false){
-      CONSOLE.println("EEPROM test");
-      ioEepromWriteByte( EEPROM_I2C_ADDR, 0, 42);
-      delay(50);
-      int v = ioEepromReadByte( EEPROM_I2C_ADDR, 0);
-      CONSOLE.print("EEPROM=");
-      CONSOLE.println(v);
-    }
 
   #endif
 }
@@ -554,8 +492,8 @@ void SerialMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm){
   serialRobot.requestLeftPwm = leftPwm;
   serialRobot.requestRightPwm = rightPwm;
   // Alfred mowing motor driver seem to start start mowing motor more successfully with full PWM (100%) values...  
-  if (mowPwm > 0) mowPwm = 255;
-    else if (mowPwm < 0) mowPwm = -255;
+  //if (mowPwm > 0) mowPwm = 255;
+    //else if (mowPwm < 0) mowPwm = -255;
   serialRobot.requestMowPwm = mowPwm;
 }
 
@@ -671,31 +609,9 @@ float SerialBatteryDriver::getBatteryVoltage(){
   #ifdef __linux__
     // detect if MCU PCB is switched-off
     if (millis() > nextADCTime){
-      if (!adcTriggered){
-        // trigger ADC measurement (mcuAna)
-        ioAdcMux(ADC_MCU_ANA);
-        ioAdcTrigger(ADC_I2C_ADDR);   
-        adcTriggered = true; 
-        nextADCTime = millis() + 5;    
-      } else {           
-        nextADCTime = millis() + 1000;
-        adcTriggered = false;
-        float v = ioAdc(ADC_I2C_ADDR);
-        mcuBoardPoweredOn = true;
-        if (v < 0){
-          CONSOLE.println("ERROR reading ADC channel mcuAna!");
-          // reset ADC
-          ioAdcStart(ADC_I2C_ADDR, false, true);
-        } else {
-          if ((v >0) && (v < 0.8)){
-            // no mcuAna, MCU PCB is probably switched off
-            CONSOLE.print("mcuAna=");
-            CONSOLE.println(v);      
-            CONSOLE.println("MCU PCB powered OFF!");
-            mcuBoardPoweredOn = false;        
-          }
-        }
-      }
+      nextADCTime = millis() + 1000;
+      return 25;
+      
     }    
     if (serialRobot.mcuCommunicationLost){
       // return 0 volt if MCU PCB is connected and powered-off (Linux will shutdown)

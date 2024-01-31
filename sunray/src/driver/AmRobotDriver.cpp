@@ -722,7 +722,7 @@ bool AmStopButtonDriver::triggered(){
 void AmRainSensorDriver::begin(){
   nextControlTime = 0;
   isRaining = false;  
-  pinMode(pinRain, INPUT_PULLUP);
+  pinMode(pinRain, INPUT);
 }
 
 void AmRainSensorDriver::run(){
