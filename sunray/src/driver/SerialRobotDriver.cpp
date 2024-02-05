@@ -34,6 +34,8 @@ void SerialRobotDriver::begin(){
   triggeredLift = false;
   motorFault = false;
   mcuCommunicationLost = true;
+  mcuShutdownConfirmed = false;
+  requestMcuShutdownCnt = 0;
   nextSummaryTime = 0;
   nextConsoleTime = 0; 
   nextMotorTime = 0;
@@ -210,6 +212,13 @@ void SerialRobotDriver::requestMotorPwm(int leftPwm, int rightPwm, int mowPwm){
   cmdMotorCounter++;
 }
 
+// request MCU shutdown
+void SerialRobotDriver::requestMcuShutdown(){
+  String req;
+  req += "AT+Y3";
+  sendRequest(req);
+}
+
 void SerialRobotDriver::motorResponse(){
   if (cmd.length()<6) return;  
   int counter = 0;
@@ -272,6 +281,10 @@ void SerialRobotDriver::versionResponse(){
   CONSOLE.print(mcuFirmwareName);
   CONSOLE.print(",");
   CONSOLE.println(mcuFirmwareVersion);
+}
+
+void SerialRobotDriver::shutdownResponse(){
+  mcuShutdownConfirmed = true;
 }
 
 
@@ -357,10 +370,11 @@ void SerialRobotDriver::processResponse(bool checkCrc){
       // remove CRC      
       cmd = cmd.substring(0, idx);      
     }    
-  }     
+  } 
   if (cmd[0] == 'M') motorResponse();
   if (cmd[0] == 'S') summaryResponse();
   if (cmd[0] == 'V') versionResponse();
+  if ((cmd[0] == 'Y') && (cmd[1] == '3')) shutdownResponse();
 }
 
 
@@ -654,11 +668,21 @@ void SerialBatteryDriver::keepPowerOn(bool flag){
       }
       if (millis() > linuxShutdownTime){
         linuxShutdownTime = millis() + 10000; // re-trigger linux command after 10 secs
-        CONSOLE.println("LINUX will SHUTDOWN!");
-        // switch-off fan via port-expander PCA9555     
-        serialRobot.setFanPowerState(false);
-        Process p;
-        p.runShellCommand("shutdown now");
+        if ((!serialRobot.mcuShutdownConfirmed)&&(serialRobot.requestMcuShutdownCnt<3)){
+          CONSOLE.println("Request MCU shutdown");
+          serialRobot.requestMcuShutdown();
+          serialRobot.requestMcuShutdownCnt++;
+        }
+        else{
+          CONSOLE.println("LINUX will SHUTDOWN!");
+          CONSOLE.print("MCU shutdown confirmed: ");
+          CONSOLE.println(serialRobot.mcuShutdownConfirmed);
+          // switch-off fan via port-expander PCA9555     
+          serialRobot.setFanPowerState(false);
+          Process p;
+          p.runShellCommand("shutdown now");
+        }
+        
       }
     }   
   #endif  

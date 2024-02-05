@@ -1,5 +1,6 @@
 # Landrumower MCU (Raspberry Pi Pico) fimrware (based on RM18.ino Alfred MCU fw)
 
+
 # packeage imports
 from machine import Pin
 from machine import PWM
@@ -14,13 +15,14 @@ from utime import sleep
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.0.0"
+VER = "Landrumower RPI Pico 1.1.0" #Added Battery undervoltage logic
 
 # pin definition
 pinRain = ADC(Pin(28))
 pinLift1 = Pin(20, Pin.IN, Pin.PULL_UP)
 pinBumperX = Pin(18, Pin.IN, Pin.PULL_UP)
 pinBumperY = Pin(19, Pin.IN, Pin.PULL_UP)
+pinBatterySwitch = Pin(22, Pin.OUT)
 # pinChargeV = ADC(Pin(26))
 
 pinMotorRightImp = Pin(2, Pin.IN)
@@ -42,9 +44,14 @@ pinMotorMowBrake = Pin(13, Pin.OUT)
 DEBUG = False
 DEBUG2 = True
 
+# critical voltage pico will cut off power supply
+CRITICALVOLTAGE = 17
+
 # bl driver spec
 FREQ = 20000 #JYQD2021 best results
 FREQ_MOW = 10000 #No data for mow bl driver available
+
+# i2c adresses
 INABATADRESS = 64 # (A0 and A1 on GND)
 INAMOWADRESS = 65 # (A0 on VCC)
 INALEFTADRESS = 68
@@ -101,6 +108,8 @@ nextMotorSenseTime = time.ticks_add(time.ticks_ms(), 0)
 nextMotorControlTime = time.ticks_add(time.ticks_ms(), 0)
 mowBrakeStateTimout = time.ticks_add(time.ticks_ms(), 0)
 mowBrakeState = 0
+switchBatteryDebounceCtr = 0
+requestShutdown = False
 
 nextInfoTime = time.ticks_add(time.ticks_ms(), 0)
 lps = 0
@@ -240,7 +249,6 @@ def readSensorHighFrequency() -> None:
 
 def readSensors() -> None:
     global batVoltage
-    global batVoltageLP
     global batteryTemp
     global ovCheck
     global motorMowFault
@@ -257,12 +265,9 @@ def readSensors() -> None:
     # battery voltage
     try:
         batVoltage = inabat.bus_voltage + inabat.shunt_voltage
-        w = 0.99
-        batVoltageLP = w * batVoltageLP + (1-w) * batVoltage
     except Exception as e:
         print(f"Error while reading INA data: {e}")
         batVoltage = 0
-        batVoltageLP = 0
 
     # rain 
     w = 0.99
@@ -300,8 +305,21 @@ def readMotorCurrent() -> None:
     if mowCurrLP > 3 or motorLeftCurrLP > 1.5 or motorRightCurrLP > 1.5:
         motorOverload = True
         motorOverloadTimeout = time.ticks_add(time.ticks_ms, 2000)
-    
 
+def keepPowerOn() -> None:
+    global switchBatteryDebounceCtr
+    global requestShutdown
+    if batVoltage < CRITICALVOLTAGE or requestShutdown:
+        switchBatteryDebounceCtr +=1
+    else:
+        switchBatteryDebounceCtr = 0
+
+    if switchBatteryDebounceCtr == 10 or switchBatteryDebounceCtr == 20 or switchBatteryDebounceCtr == 30:
+        print("Battery critical level or request shutdown from main unit")
+    if switchBatteryDebounceCtr > 40:
+        print(f"SHUTTING DOWN")
+        pinBatterySwitch.value(0)
+    
 # request motor
 # AT+M,20,20,1
 def cmdMotor() -> None:
@@ -325,6 +343,13 @@ def cmdMotor() -> None:
     mowSpeedSet = mow
     motorTimeout = time.ticks_add(time.ticks_ms(), 3000)
     s = f"M,{odomTicksRight},{odomTicksLeft},{odomTicksMow},{chgVoltage},{int(bumper)},{int(lift)},{int(stopButton)}"
+    cmdAnswer(s)
+
+# perform shutdown
+def cmdShutdown() -> None:
+    global requestShutdown
+    requestShutdown = True
+    s = f"Y3"
     cmdAnswer(s)
 
 # perform hang test (watchdog should trigger)
@@ -383,6 +408,7 @@ def processCmd(checkCRC: bool) -> None:
         if cmd_splited[0] == "AT+V": cmdVersion()
         if cmd_splited[0] == "AT+M": cmdMotor()
         if cmd_splited[0] == "AT+S": cmdSummary()
+        if cmd_splited[0] == "AT+Y3": cmdShutdown()
         if cmd_splited[0] == "AT+Y":
             if len(cmd) <= 4:
                 cmdTriggerWatchdog() # for developers
@@ -407,18 +433,26 @@ def processConsole() -> None:
 
 def printInfo() -> None:
     print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltage}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={rain}, ov={ovCheck}")
-    
+
+# setup
+# activate watchdog
+wdt = WDT(timeout=6000) 
+
+# swicht on battery
+pinBatterySwitch.value(1)
+
+# define here setup debug outputs
 if DEBUG2:
     i2c_devices = I2C0.scan()
     for device in i2c_devices:
         print(f"Found devices on I2C bus: {hex(device)}")
 
+# set ISRs
 pinMotorMowImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryMowISR)
 pinMotorLeftImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryLeftISR)
 pinMotorRightImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryRightISR)
 
-# activate watchdog
-wdt = WDT(timeout=6000)
+
 
 # main loop
 while True:
@@ -428,7 +462,7 @@ while True:
         motor()
         mower()
         readSensorHighFrequency()
-
+        
     if time.ticks_diff(motorTimeout, time.ticks_ms()) <= 0:
         # if DEBUG:
         #     print("Motor timeout")
@@ -443,6 +477,7 @@ while True:
 
     if time.ticks_diff(nextInfoTime, time.ticks_ms()) <= 0:
         nextInfoTime = time.ticks_add(time.ticks_ms(), 1000)    
+        keepPowerOn()
         if DEBUG2:
             printInfo()
         lps = 0
@@ -462,4 +497,3 @@ while True:
     lps += 1
     wdt.feed()
 pin.off()
-

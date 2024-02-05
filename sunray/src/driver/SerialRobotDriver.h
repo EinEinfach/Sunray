@@ -42,12 +42,15 @@ class SerialRobotDriver: public RobotDriver {
     bool triggeredLift;
     bool triggeredRain;
     bool triggeredStopButton;
+    bool mcuShutdownConfirmed;
+    int requestMcuShutdownCnt;
     void begin() override;
     void run() override;
     bool getRobotID(String &id) override;
     bool getMcuFirmwareVersion(String &name, String &ver) override;
     float getCpuTemperature() override;
     void requestMotorPwm(int leftPwm, int rightPwm, int mowPwm);
+    void requestMcuShutdown();
     void requestSummary();
     void requestVersion();
     void updatePanelLEDs();
@@ -80,6 +83,7 @@ class SerialRobotDriver: public RobotDriver {
     void motorResponse();
     void summaryResponse();
     void versionResponse();
+    void shutdownResponse();
 };
 
 class SerialMotorDriver: public MotorDriver {
