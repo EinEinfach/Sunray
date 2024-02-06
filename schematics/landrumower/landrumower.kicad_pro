@@ -429,6 +429,22 @@
     [
       "e63e39d7-6ac0-4ffd-8aa3-1841a4541b55",
       ""
+    ],
+    [
+      "b80aa845-c1c7-4a36-86eb-13202c5b8807",
+      "Pi Pico"
+    ],
+    [
+      "1cf43177-00ba-4d2f-af09-7f093a0d589c",
+      "Motor connections"
+    ],
+    [
+      "4344b8fd-b142-4fc5-92ce-805de17acedf",
+      "Sensor and interface connections"
+    ],
+    [
+      "cf41879f-4500-4c80-ba72-9470addc1835",
+      "PI4"
     ]
   ],
   "text_variables": {}
