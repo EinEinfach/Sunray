@@ -15,7 +15,7 @@ from utime import sleep
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.1.0" #Added Battery undervoltage logic
+VER = "Landrumower RPI Pico 1.2.0" #Some changes in battery charging logic
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -230,14 +230,14 @@ def readSensorHighFrequency() -> None:
     global chgVoltage
     global chargerConnected
     global chgCurrentLP
-    global batVoltageLP
+    global batVoltage
 
     try:
         chgCurrentLP = inabat.current
         if chgCurrentLP < 0:
             chgCurrentLP = abs(chgCurrentLP)
             chargerConnected = True
-            chgVoltage = batVoltageLP
+            chgVoltage = batVoltage
         else:
             chargerConnected = False
             chgVoltage = 0
@@ -315,7 +315,12 @@ def keepPowerOn() -> None:
         switchBatteryDebounceCtr = 0
 
     if switchBatteryDebounceCtr == 10 or switchBatteryDebounceCtr == 20 or switchBatteryDebounceCtr == 30:
-        print("Battery critical level or request shutdown from main unit")
+        if requestShutdown:
+            print("Main unit requests shutdown. Delay time started")
+        else:
+            print("Battery oltage critical level reached")
+            print("SHUTTING DOWN")
+            pinBatterySwitch.value(0)
     if switchBatteryDebounceCtr > 40:
         print(f"SHUTTING DOWN")
         pinBatterySwitch.value(0)
@@ -432,7 +437,7 @@ def processConsole() -> None:
         cmd = ""
 
 def printInfo() -> None:
-    print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltage}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={rain}, ov={ovCheck}")
+    print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltage}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, curr={motorLeftCurrLP},{motorRightCurrLP},{mowCurrLP},lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={rain}, ov={ovCheck}")
 
 # setup
 # activate watchdog
