@@ -217,6 +217,7 @@ void sensorTest(){
     sonar.run();
     bumper.run();
     liftDriver.run();
+    rainDriver.run();
     if (millis() > nextMeasureTime){
       nextMeasureTime = millis() + 1000;      
       if (SONAR_ENABLE){
@@ -254,6 +255,11 @@ void sensorTest(){
         CONSOLE.print(((int)liftDriver.triggered()));	
         CONSOLE.print("\t");							            
       #endif  
+      if (RAIN_ENABLE){
+        CONSOLE.print("rain sensor (triggered): ");
+        CONSOLE.print(((int)rainDriver.triggered()));
+        CONSOLE.print("\t");
+      }
 	
       CONSOLE.println();  
       watchdogReset();

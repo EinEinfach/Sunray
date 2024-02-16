@@ -15,7 +15,7 @@ from utime import sleep
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.2.0" #Some changes in battery charging logic
+VER = "Landrumower RPI Pico 1.2.1" #Change raining logic
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -273,7 +273,7 @@ def readSensors() -> None:
     w = 0.99
     rain = pinRain.read_u16()
     rainLP = w * rainLP + (1 - w) * rain
-    raining = (((rainLP * 100) / 65535) < 50)
+    raining = int((((rainLP * 100) / 65535) > 50))
 
     # lift
     liftLeft = pinLift1.value()
@@ -437,7 +437,7 @@ def processConsole() -> None:
         cmd = ""
 
 def printInfo() -> None:
-    print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltage}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, curr={motorLeftCurrLP},{motorRightCurrLP},{mowCurrLP},lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={rain}, ov={ovCheck}")
+    print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltage}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, curr={motorLeftCurrLP},{motorRightCurrLP},{mowCurrLP},lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={raining}, ov={ovCheck}")
 
 # setup
 # activate watchdog
