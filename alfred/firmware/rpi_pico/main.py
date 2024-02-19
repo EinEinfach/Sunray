@@ -15,7 +15,7 @@ from utime import sleep
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.2.1" #Change raining logic
+VER = "Landrumower RPI Pico 1.3.0" #Added stop button logic
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -23,6 +23,7 @@ pinLift1 = Pin(20, Pin.IN, Pin.PULL_UP)
 pinBumperX = Pin(18, Pin.IN, Pin.PULL_UP)
 pinBumperY = Pin(19, Pin.IN, Pin.PULL_UP)
 pinBatterySwitch = Pin(22, Pin.OUT)
+pinStopButton = Pin(21, Pin.IN, Pin.PULL_UP)
 # pinChargeV = ADC(Pin(26))
 
 pinMotorRightImp = Pin(2, Pin.IN)
@@ -65,10 +66,12 @@ odomTicksMow = 0
 motorLeftTicksTimeout = time.ticks_ms()
 motorRightTicksTimeout = time.ticks_ms()
 motorMowTicksTimeout = time.ticks_ms()
+stopButtonTimeout = time.ticks_ms()
 
-stopButton = False
+stopButton = 0
 
 batVoltage = 0
+batVoltageLP = 0
 chgVoltage = 0
 chgCurrent = 0
 chgCurrentLP = 0
@@ -230,14 +233,14 @@ def readSensorHighFrequency() -> None:
     global chgVoltage
     global chargerConnected
     global chgCurrentLP
-    global batVoltage
+    global batVoltageLP
 
     try:
         chgCurrentLP = inabat.current
         if chgCurrentLP < 0:
             chgCurrentLP = abs(chgCurrentLP)
             chargerConnected = True
-            chgVoltage = batVoltage
+            chgVoltage = batVoltageLP
         else:
             chargerConnected = False
             chgVoltage = 0
@@ -249,6 +252,7 @@ def readSensorHighFrequency() -> None:
 
 def readSensors() -> None:
     global batVoltage
+    global batVoltageLP
     global batteryTemp
     global ovCheck
     global motorMowFault
@@ -261,13 +265,17 @@ def readSensors() -> None:
     global bumperX
     global bumperY
     global bumper
+    global stopButton
+    global stopButtonTimeout
 
     # battery voltage
+    w = 0.99
     try:
-        batVoltage = inabat.bus_voltage + inabat.shunt_voltage
+        batVoltage = inabat.bus_voltage + inabat.shunt_voltage 
     except Exception as e:
         print(f"Error while reading INA data: {e}")
         batVoltage = 0
+    batVoltageLP = w * batVoltageLP + (1 - w) * batVoltage
 
     # rain 
     w = 0.99
@@ -284,6 +292,12 @@ def readSensors() -> None:
     bumperX = pinBumperX.value()
     bumperY = pinBumperY.value()
     bumper = int(bumperX or bumperY)
+
+    # stop button
+    if pinStopButton.value() == 1:
+        stopButton = 1
+    else:
+        stopButton = 0
 
     # dummys
     batteryTemp = 20 
@@ -309,7 +323,7 @@ def readMotorCurrent() -> None:
 def keepPowerOn() -> None:
     global switchBatteryDebounceCtr
     global requestShutdown
-    if batVoltage < CRITICALVOLTAGE or requestShutdown:
+    if (batVoltageLP < CRITICALVOLTAGE and batVoltage < CRITICALVOLTAGE) or requestShutdown:
         switchBatteryDebounceCtr +=1
     else:
         switchBatteryDebounceCtr = 0
@@ -371,7 +385,7 @@ def cmdVersion() -> None:
 
 # request summary
 def cmdSummary() -> None:
-    s = f"S,{batVoltage},{chgVoltage},{chgCurrentLP},{int(lift)},{int(bumper)},{int(raining)},{int(motorOverload)},{mowCurrLP},{motorLeftCurrLP},{motorRightCurrLP},{batteryTemp}"
+    s = f"S,{batVoltageLP},{chgVoltage},{chgCurrentLP},{int(lift)},{int(bumper)},{int(raining)},{int(motorOverload)},{mowCurrLP},{motorLeftCurrLP},{motorRightCurrLP},{batteryTemp}"
     cmdAnswer(s)
 
 # process request
@@ -437,7 +451,7 @@ def processConsole() -> None:
         cmd = ""
 
 def printInfo() -> None:
-    print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltage}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, curr={motorLeftCurrLP},{motorRightCurrLP},{mowCurrLP},lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={raining}, ov={ovCheck}")
+    print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltageLP}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, curr={motorLeftCurrLP},{motorRightCurrLP},{mowCurrLP},lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={raining}, stop={stopButton}")
 
 # setup
 # activate watchdog
@@ -456,8 +470,6 @@ if DEBUG2:
 pinMotorMowImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryMowISR)
 pinMotorLeftImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryLeftISR)
 pinMotorRightImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryRightISR)
-
-
 
 # main loop
 while True:
