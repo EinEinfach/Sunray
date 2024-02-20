@@ -15,13 +15,13 @@ from utime import sleep
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.3.0" #Added stop button logic
+VER = "Landrumower RPI Pico 1.3.1" #Changed Pin INPUT for Bumpers
 
 # pin definition
 pinRain = ADC(Pin(28))
 pinLift1 = Pin(20, Pin.IN, Pin.PULL_UP)
-pinBumperX = Pin(18, Pin.IN, Pin.PULL_UP)
-pinBumperY = Pin(19, Pin.IN, Pin.PULL_UP)
+pinBumperX = Pin(18, Pin.IN, Pin.PULL_DOWN)
+pinBumperY = Pin(19, Pin.IN, Pin.PULL_DOWN)
 pinBatterySwitch = Pin(22, Pin.OUT)
 pinStopButton = Pin(21, Pin.IN, Pin.PULL_UP)
 # pinChargeV = ADC(Pin(26))
