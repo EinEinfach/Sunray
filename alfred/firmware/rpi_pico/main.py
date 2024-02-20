@@ -15,11 +15,11 @@ from utime import sleep
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.3.1" #Changed Pin INPUT for Bumpers
+VER = "Landrumower RPI Pico 1.3.2" #Changed Pin INPUT for lift
 
 # pin definition
 pinRain = ADC(Pin(28))
-pinLift1 = Pin(20, Pin.IN, Pin.PULL_UP)
+pinLift1 = Pin(20, Pin.IN, Pin.PULL_DOWN)
 pinBumperX = Pin(18, Pin.IN, Pin.PULL_DOWN)
 pinBumperY = Pin(19, Pin.IN, Pin.PULL_DOWN)
 pinBatterySwitch = Pin(22, Pin.OUT)
