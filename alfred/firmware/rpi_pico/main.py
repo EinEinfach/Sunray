@@ -124,15 +124,17 @@ UART0 = UART(0, baudrate=115200, tx=Pin(0), rx=Pin(1), bits=8, parity=None, stop
 I2C0 = I2C(0, sda=Pin(16), scl=Pin(17), freq=400000, timeout=1000)
 
 # calibrate INA I2C devices
-inabat = INA226(I2C0, INABATADRESS)
-inamow = INA226(I2C0, INAMOWADRESS)
-inaleft = INA226(I2C0, INALEFTADRESS)
-inaright = INA226(I2C0, INARIGHTADRESS)
-
-try: 
+try:
+    inabat = INA226(I2C0, INABATADRESS)
+    inamow = INA226(I2C0, INAMOWADRESS)
+    inaleft = INA226(I2C0, INALEFTADRESS)
+    inaright = INA226(I2C0, INARIGHTADRESS)
     inabat.set_calibration()
+    inamow.set_calibration()
+    inaleft.set_calibration()
+    inaright.set_calibration()
 except Exception as e:
-    print(f"INA226 error: {e}")
+    print(f"I2C error, could not calibrate INA226 for current measurement: {e}")
 
 # cmd answer with crc
 def cmdAnswer(s: str) -> None:
@@ -245,7 +247,7 @@ def readSensorHighFrequency() -> None:
             chargerConnected = False
             chgVoltage = 0
     except Exception as e:
-        print(f"Error while reading INA data: {e}")
+        print(f"Error while reading INA(Battery) data: {e}")
         chargerConnected = False
         chgCurrentLP = 0
         chgVoltage = 0
@@ -273,7 +275,7 @@ def readSensors() -> None:
     try:
         batVoltage = inabat.bus_voltage + inabat.shunt_voltage 
     except Exception as e:
-        print(f"Error while reading INA data: {e}")
+        print(f"Error while reading INA(Battery) data: {e}")
         batVoltage = 0
     batVoltageLP = w * batVoltageLP + (1 - w) * batVoltage
 
@@ -311,10 +313,12 @@ def readMotorCurrent() -> None:
     global motorLeftCurrLP
     global motorOverload
     global motorOverloadTimeout
-
-    motorLeftCurrLP = abs(inaleft.current)
-    motorRightCurrLP = abs(inaright.current)
-    mowCurrLP = abs(inamow.current)
+    try:
+        motorLeftCurrLP = abs(inaleft.current)
+        motorRightCurrLP = abs(inaright.current)
+        mowCurrLP = abs(inamow.current)
+    except Exception as e:
+        print(f"Error while reading INA(Motors) data: {e}")
 
     if mowCurrLP > 3 or motorLeftCurrLP > 1.5 or motorRightCurrLP > 1.5:
         motorOverload = True
