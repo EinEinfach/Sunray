@@ -15,7 +15,7 @@ from utime import sleep
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.3.2" #Changed Pin INPUT for lift
+VER = "Landrumower RPI Pico 1.3.3" #Changed Rain logic from high to low
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -91,8 +91,8 @@ bumperX = 0
 bumperY = 0
 liftLeft = 0
 liftRight = 0
-rain = 0
-rainLP = 0
+rain = 65535
+rainLP = 65535
 raining = 0
 lift = 0
 bumper = 0
@@ -283,7 +283,7 @@ def readSensors() -> None:
     w = 0.99
     rain = pinRain.read_u16()
     rainLP = w * rainLP + (1 - w) * rain
-    raining = int((((rainLP * 100) / 65535) > 50))
+    raining = int((((rainLP * 100) / 65535) < 50))
 
     # lift
     liftLeft = pinLift1.value()
@@ -318,6 +318,7 @@ def readMotorCurrent() -> None:
         motorRightCurrLP = abs(inaright.current)
         mowCurrLP = abs(inamow.current)
     except Exception as e:
+        pass
         print(f"Error while reading INA(Motors) data: {e}")
 
     if mowCurrLP > 3 or motorLeftCurrLP > 1.5 or motorRightCurrLP > 1.5:
@@ -455,7 +456,7 @@ def processConsole() -> None:
         cmd = ""
 
 def printInfo() -> None:
-    print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltageLP}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, curr={motorLeftCurrLP},{motorRightCurrLP},{mowCurrLP},lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={raining}, stop={stopButton}")
+    print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltageLP}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, curr={motorLeftCurrLP},{motorRightCurrLP},{mowCurrLP},lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={rainLP, raining}, stop={stopButton}")
 
 # setup
 # activate watchdog
