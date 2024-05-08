@@ -137,7 +137,7 @@ void DockOp::onObstacleRotation(){
     CONSOLE.println("error: rotation error due to obstacle!");    
     statMowObstacles++;   
     stateSensor = SENS_OBSTACLE;
-    changeOp(errorOp);    
+    changeOp(escapeReverseOp, true);    
 }
 
 void DockOp::onObstacle(){
