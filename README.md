@@ -5,10 +5,13 @@
 2. [Sunray for Ardumower](#sunray_ardumower)
 3. [Sunray for Alfred](#sunray_alfred)
 4. [Sunray Simulator](#sunray_sim)
+5. [Further topics](#further_topics)
    
 
 ## Description <a name="description"></a>
 Sunray firmware is an alternative Firmware (experimental) for...
+
+![sunray_platform](https://github.com/Ardumower/Sunray/assets/11735886/5d3d561a-d0eb-4028-98d9-260ea340c903)
 
 Platform | Hardware required 
 --- | ---
@@ -46,7 +49,7 @@ https://github.com/Ardumower/Sunray/releases
 NOTE: Below steps are only required if you want to compile a custom version of the 'Sunray for Alfred' firmware. The code for all steps will require a Linux system (either the Alfred, a Raspberry PI or some PC).
 
 ## How to install code and compile 'Sunray for Alfred' (required only once)
-Run this on your Alfred Linux terminal:
+Run this on your Alfred Linux terminal (in your Alfred home folder):
 
 ```
 ## clone repository ##
@@ -73,6 +76,8 @@ git pull
 
 ## compile sunray (NOTE: 'make' will always copy config.h in current makefile folder into Sunray source folder) ##
 cd ~/Sunray/alfred/build
+rm -Rf *
+cmake ..
 make
 
 ## install new sunray executable ##
@@ -97,7 +102,20 @@ Before running above commands, install required libs:
 sudo apt-get -y install cmake
 sudo apt-get -y install libbluetooth-dev
 ```
-
+For Raspberry PI, you may have to adjust the serial path for the Alfred MCU UART connection in 'alfred/config.h': 
+```
+#define SERIAL_ROBOT_PATH "/dev/ttyS0" 
+```
+You can find out the correct UART serial path using: 'dmesg | grep uart'. NOTE: you may have to stop running services accessing the UART serial path:
+```
+# find out processes accessing the UART serial path:
+sudo lsof /dev/ttyS0
+# list all running services:
+sudo systemctl list-units --type=service --state=running
+# stopping/disabling service
+sudo systemctl stop serial-getty@ttyS0.service
+sudo systemctl disable serial-getty@ttyS0.service
+```
 ## How to use more robust Bit-bangling-based instead ARM-based I2C driver on a Raspberry PI (OS Lite 64 bit, Debian Bullseye)
 The Raspberry CPU-based I2C driver has certain issues (e.g. missing clock stretching for BNO055, missing SCL recovery in noisy environment etc.) You can switch from the Raspberry ARM-I2C-driver to a more robust software-based driver (aka 'bit-bangling') like this:
 1. Run 'sudo raspi-config' and disable the ARM I2C driver
@@ -110,6 +128,9 @@ sudo i2cdetect -y 1
 ## How to compile 'OpenOCD' on a Raspberry PI (OS Lite 64 bit, Debian Bullseye)
 OpenOCD is used to flash the Alfred MCU firmware via GPIO interface (SWD emulation). Run this in your 'pi' home folder. The compiled binary ('openocd') can be found in folder 'src'. The binary will be called by the flash script ('~/sunray_install/flash.sh') to flash the Alfred MCU firmware. 
 ```
+sudo apt-get -y install libusb-1.0-0
+sudo apt-get -y install libusb-1.0-0-dev
+sudo apt-get -y install pkg-config
 sudo apt-get -y install libtool
 git clone --recursive https://github.com/lupyuen/openocd-spi
 cd openocd-spi
@@ -199,5 +220,9 @@ for _ in `seq 1 30`; do
   sleep 2.0    
 done;
 ```
+
+## Further topics <a name="further_topics"></a>
+Generating robot heatmaps (WiFi/GPS signal quality etc.):
+https://forum.ardumower.de/threads/advanced-topic-generate-wifi-gps-heatmaps-with-sunray-on-alfred-or-ardumower-with-connected-raspberry-pi.25078/
 
 

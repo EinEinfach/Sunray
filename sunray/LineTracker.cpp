@@ -10,6 +10,7 @@
 #include "helper.h"
 #include "pid.h"
 #include "src/op/op.h"
+#include "Stats.h"
 
 
 //PID pidLine(0.2, 0.01, 0); // not used
@@ -22,7 +23,6 @@ float stanleyTrackingSlowK = STANLEY_CONTROL_K_SLOW;
 float stanleyTrackingSlowP = STANLEY_CONTROL_P_SLOW;    
 
 float setSpeed = 0.1; // linear speed (m/s)
-Point last_rotation_target;
 bool rotateLeft = false;
 bool rotateRight = false;
 bool angleToTargetFits = false;
@@ -33,86 +33,6 @@ bool stateKidnapped = false;
 bool printmotoroverload = false;
 bool trackerDiffDelta_positive = false;
 
-int get_turn_direction_preference() {
-  Point target = maps.targetPoint;
-  float targetDelta = pointsAngle(stateX, stateY, target.x(), target.y());
-  float center_x = stateX;
-  float center_y = stateY;
-  float r = (MOWER_SIZE / 100);
-  float cur_angle = stateDelta;
-
-  if (FREEWHEEL_IS_AT_BACKSIDE) {
-	  cur_angle = scalePI(stateDelta + PI);
-	  targetDelta = scalePI(targetDelta + PI);
-  }
-
-  // create circle / octagon around center angle 0 - "360"
-  circle.points[0].setXY(center_x + cos(deg2rad(0)) * r, center_y + sin(deg2rad(0)) * r);
-  circle.points[1].setXY(center_x + cos(deg2rad(45)) * r, center_y + sin(deg2rad(45)) * r);
-  circle.points[2].setXY(center_x + cos(deg2rad(90)) * r, center_y + sin(deg2rad(90)) * r);
-  circle.points[3].setXY(center_x + cos(deg2rad(135)) * r, center_y + sin(deg2rad(135)) * r);
-  circle.points[4].setXY(center_x + cos(deg2rad(180)) * r, center_y + sin(deg2rad(180)) * r);
-  circle.points[5].setXY(center_x + cos(deg2rad(225)) * r, center_y + sin(deg2rad(225)) * r);
-  circle.points[6].setXY(center_x + cos(deg2rad(270)) * r, center_y + sin(deg2rad(270)) * r);
-  circle.points[7].setXY(center_x + cos(deg2rad(315)) * r, center_y + sin(deg2rad(315)) * r);
-
-  // CONSOLE.print("get_turn_direction_preference: ");
-  // CONSOLE.print(" pos: ");
-  // CONSOLE.print(stateX);
-  // CONSOLE.print("/");
-  // CONSOLE.print(stateY);
-  // CONSOLE.print(" stateDelta: ");
-  // CONSOLE.print(cur_angle);
-  // CONSOLE.print(" targetDelta: ");
-  // CONSOLE.println(targetDelta);
-  int right = 0;
-  int left = 0;
-  for(int i = 0; i < circle.numPoints; ++i) {
-    float angle = pointsAngle(stateX, stateY, circle.points[i].x(), circle.points[i].y());
-    // CONSOLE.print(angle);
-    // CONSOLE.print(" ");
-    // CONSOLE.print(i);
-    // CONSOLE.print(": ");
-    // CONSOLE.print(circle.points[i].x());
-    // CONSOLE.print("/");
-    // CONSOLE.println(circle.points[i].y());
-    if (maps.checkpoint(circle.points[i].x(), circle.points[i].y())) {
-
-            // skip points in front of us
-            if (fabs(angle-cur_angle) < 0.05) {
-                    continue;
-            }
-
-            if (cur_angle < targetDelta) {
-                if (angle >= cur_angle && angle <= targetDelta) {
-                    left++;
-                } else {
-                    right++;
-                }
-            } else {
-                   if (angle <= cur_angle && angle >= targetDelta) {
-                    right++;
-                } else {
-                    left++;
-                }
-            }
-    }
-  }
-  // CONSOLE.print("left/right: ");
-  // CONSOLE.print(left);
-  // CONSOLE.print("/");
-  // CONSOLE.println(right);
-
-  if (right == left) {
-          return 0;
-  }
-
-  if (right < left) {
-          return 1;
-  }
-
-  return -1;
-}
 
 // control robot velocity (linear,angular) to track line to next waypoint (target)
 // uses a stanley controller for line tracking
@@ -138,13 +58,7 @@ void trackLine(bool runControl){
   else 
     targetReached = (targetDist < TARGET_REACHED_TOLERANCE);
 
-  if ( (last_rotation_target.x() != target.x() || last_rotation_target.y() != target.y()) &&
-        (rotateLeft || rotateRight ) ) {
-    // CONSOLE.println("reset left / right rot (target point changed)");
-    rotateLeft = false;
-    rotateRight = false;
-  }
-
+  
   // allow rotations only near last or next waypoint or if too far away from path
   // it might race between rotating mower and targetDist check below
   // if we race we still have rotateLeft or rotateRight true
@@ -160,45 +74,22 @@ void trackLine(bool runControl){
     //angleToTargetFits = true;
   }
 
+  //if (!angleToTargetFits) CONSOLE.println("!angleToTargetFits");
+
   if (!angleToTargetFits){
     // angular control (if angle to far away, rotate to next waypoint)
     linear = 0;
     angular = 29.0 / 180.0 * PI; //  29 degree/s (0.5 rad/s);               
-    if ((!rotateLeft) && (!rotateRight)){ // decide for one rotation direction (and keep it)
-      int r = 0;
-      // no idea but don't work in reverse mode...
-      if (!maps.trackReverse) {
-        r = get_turn_direction_preference();
-      }
-      // store last_rotation_target point
-      last_rotation_target.setXY(target.x(), target.y());
-      
-      if (r == 1) {
-        //CONSOLE.println("force turn right");
-        rotateLeft = false;
-        rotateRight = true;
-      }
-      else if (r == -1) {
-        //CONSOLE.println("force turn left");
-        rotateLeft = true;
-        rotateRight = false;
-      }
-      else if (trackerDiffDelta < 0) {
-        rotateRight = true;
-      } else {
-        rotateLeft = true;
-      }
-
-      trackerDiffDelta_positive = (trackerDiffDelta >= 0);
-    }        
-    if (trackerDiffDelta_positive != (trackerDiffDelta >= 0)) {
-      CONSOLE.println("reset left / right rotation - DiffDelta overflow");
-      rotateLeft = false;
-      rotateRight = false;
-      // reverse rotation (*-1) - slowly rotate back
-      angular = 10.0 / 180.0 * PI * -1; //  10 degree/s (0.19 rad/s);               
+     // decide for one rotation direction (and keep it)
+    if ((!rotateLeft) && (!rotateRight)) {
+      if (trackerDiffDelta < 0) rotateLeft = true;
+        else rotateRight = true;      
     }
-    if (rotateRight) angular *= -1;
+    if (rotateLeft) angular *= -1;
+    if (fabs(trackerDiffDelta)/PI*180.0 < 90){
+      rotateLeft = false;  // reset rotate direction
+      rotateRight = false;
+    }   
   } 
   else {
     // line control (stanley)    
@@ -229,13 +120,18 @@ void trackLine(bool runControl){
        ) 
     {
       linear = 0.1; // reduce speed when approaching/leaving waypoints          
+      //CONSOLE.println("SLOW: approach")
     } 
     else {
-      if (gps.solution == SOL_FLOAT)        
+      if (gps.solution == SOL_FLOAT){        
         linear = min(setSpeed, 0.1); // reduce speed for float solution
-      else
+        //CONSOLE.println("SLOW: float");
+      } else
         linear = setSpeed;         // desired speed
-      if (sonar.nearObstacle()) linear = 0.1; // slow down near obstacles
+      if (sonar.nearObstacle()) {
+        linear = 0.1; // slow down near obstacles
+        //CONSOLE.println("SLOW: sonar");      
+      }
     }      
     // slow down speed in case of overload and overwrite all prior speed 
     if ( (motor.motorLeftOverload) || (motor.motorRightOverload) || (motor.motorMowOverload) ){
@@ -244,6 +140,7 @@ void trackLine(bool runControl){
       }
       printmotoroverload = true;
       linear = 0.1;  
+      //CONSOLE.println("SLOW: overload");
     } else {
       printmotoroverload = false;
     }   
@@ -284,6 +181,7 @@ void trackLine(bool runControl){
         //if ( (GPS_SPEED_DETECTION) && (!maps.isUndocking()) ) { 
         if (GPS_SPEED_DETECTION) {         
           CONSOLE.println("gps no speed => obstacle!");
+          statMowGPSNoSpeedCounter++;
           triggerObstacle();
           return;
         }
