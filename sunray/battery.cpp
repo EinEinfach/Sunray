@@ -187,7 +187,7 @@ void Battery::run(){
     } else batteryDriver.keepPowerOn(true);              
 
     // battery volage slope 
-    float w = 0.999; 
+    float w = 0.975; 
     batteryVoltageSlope = w * batteryVoltageSlope + (1-w) * (batteryVoltage - batteryVoltageLast) * 60.0/5.0;   // 5s => 1min  
     batteryVoltageLast = batteryVoltage;
     
@@ -263,7 +263,8 @@ void Battery::run(){
           if (chargingCompleted) {
             // stop charging
             nextEnableTime = millis() + 1000 * enableChargingTimeout;   // check charging current again in 30 minutes
-            chargingCompleted = true;
+            batteryVoltageSlopeLowCounter = 0;
+            //chargingCompleted = true;
             enableCharging(false);
           } 
         } else {
