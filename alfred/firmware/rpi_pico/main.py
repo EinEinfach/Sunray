@@ -15,7 +15,7 @@ from utime import sleep
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.3.3" #Changed Rain logic from high to low
+VER = "Landrumower RPI Pico 1.3.4" #Bug fix, charger connected logic
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -239,7 +239,7 @@ def readSensorHighFrequency() -> None:
 
     try:
         chgCurrentLP = inabat.current
-        if chgCurrentLP < 0:
+        if chgCurrentLP <= 0.1:
             chgCurrentLP = abs(chgCurrentLP)
             chargerConnected = True
             chgVoltage = batVoltageLP
