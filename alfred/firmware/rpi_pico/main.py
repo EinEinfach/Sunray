@@ -15,7 +15,7 @@ from utime import sleep
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.3.4" #Bug fix, charger connected logic
+VER = "Landrumower RPI Pico 1.4.0" #Possible use with INAs with 10mOhm shunt
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -47,6 +47,7 @@ DEBUG2 = True
 
 # critical voltage pico will cut off power supply
 CRITICALVOLTAGE = 17
+CURRENTFACTOR = 10 # Use 10 if your INA shunt = 10mOhm. Use 1 if your INA shunt = 100mOhm
 
 # bl driver spec
 FREQ = 20000 #JYQD2021 best results
@@ -239,6 +240,7 @@ def readSensorHighFrequency() -> None:
 
     try:
         chgCurrentLP = inabat.current
+        chgCurrentLP = chgCurrentLP * CURRENTFACTOR
         if chgCurrentLP <= 0.1:
             chgCurrentLP = abs(chgCurrentLP)
             chargerConnected = True
@@ -315,8 +317,11 @@ def readMotorCurrent() -> None:
     global motorOverloadTimeout
     try:
         motorLeftCurrLP = abs(inaleft.current)
+        motorLeftCurrLP = motorLeftCurrLP * CURRENTFACTOR
         motorRightCurrLP = abs(inaright.current)
+        motorRightCurrLP = motorRightCurrLP * CURRENTFACTOR
         mowCurrLP = abs(inamow.current)
+        mowCurrLP = mowCurrLP * CURRENTFACTOR
     except Exception as e:
         pass
         print(f"Error while reading INA(Motors) data: {e}")
