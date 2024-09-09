@@ -58,6 +58,8 @@ INAMOWADRESS = 65 # (A0 on VCC)
 INALEFTADRESS = 68
 INARIGHTADRESS = 69
 
+CURRENTFACTOR = 10 #If you changed your ina shunt from 100mOhm to 10mOhm set this value to 10, without any modifications set it to 1
+
 # global variables
 odomTicksLeft = 0
 odomTicksRight = 0
@@ -239,6 +241,7 @@ def readSensorHighFrequency() -> None:
 
     try:
         chgCurrentLP = inabat.current
+        chgCurrentLP = chgCurrentLP * CURRENTFACTOR
         if chgCurrentLP <= 0.1:
             chgCurrentLP = abs(chgCurrentLP)
             chargerConnected = True
@@ -315,8 +318,11 @@ def readMotorCurrent() -> None:
     global motorOverloadTimeout
     try:
         motorLeftCurrLP = abs(inaleft.current)
+        motorLeftCurrLP = motorLeftCurrLP * CURRENTFACTOR
         motorRightCurrLP = abs(inaright.current)
+        motorRightCurrLP = motorRightCurrLP * 10
         mowCurrLP = abs(inamow.current)
+        mowCurrLP = mowCurrLP * CURRENTFACTOR
     except Exception as e:
         pass
         print(f"Error while reading INA(Motors) data: {e}")
