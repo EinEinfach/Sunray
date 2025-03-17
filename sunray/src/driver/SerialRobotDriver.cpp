@@ -212,6 +212,12 @@ void SerialRobotDriver::requestMotorPwm(int leftPwm, int rightPwm, int mowPwm){
   cmdMotorCounter++;
 }
 
+void SerialRobotDriver::requestResetMotorFaults() {
+  String req;
+  req += "AT+R";
+  sendRequest(req);
+}
+
 // request MCU shutdown
 void SerialRobotDriver::requestMcuShutdown(){
   String req;
@@ -527,6 +533,7 @@ void SerialMotorDriver::getMotorFaults(bool &leftFault, bool &rightFault, bool &
 
 void SerialMotorDriver::resetMotorFaults(){
   CONSOLE.println("serialRobot: resetting motor fault");
+  serialRobot.requestResetMotorFaults();
   //serialRobot.requestMotorPwm(1, 1, 0);
   //delay(1);
   //serialRobot.requestMotorPwm(0, 0, 0);

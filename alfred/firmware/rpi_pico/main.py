@@ -10,12 +10,12 @@ from machine import UART
 from machine import WDT
 import time
 
-from utime import sleep
+from utime import sleep_ms
 
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.4.1" #Back to previous version
+VER = "Landrumower RPI Pico 1.5.0" #Driver reset from sunray (AT+R)
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -375,6 +375,21 @@ def cmdMotor() -> None:
     s = f"M,{odomTicksRight},{odomTicksLeft},{odomTicksMow},{chgVoltage},{int(bumper)},{int(lift)},{int(stopButton)}"
     cmdAnswer(s)
 
+# perform reset motor faults
+def cmdResetMotorFaults() -> None:
+    if DEBUG:
+        print("Motor faults request. Reseting drivers")
+    pinMotorRightPWM.duty_u16(0) 
+    pinMotorRightDir.value(0) 
+    pinMotorRightBrake.value(0)  
+
+    pinMotorLeftPWM.duty_u16(0)
+    pinMotorLeftDir.value(0)  
+    pinMotorLeftBrake.value(0)
+    s = f"R"
+    cmdAnswer(s)
+    sleep_ms(200)
+
 # perform shutdown
 def cmdShutdown() -> None:
     global requestShutdown
@@ -437,6 +452,7 @@ def processCmd(checkCRC: bool) -> None:
         if cmd_splited[0][2] != "+": return
         if cmd_splited[0] == "AT+V": cmdVersion()
         if cmd_splited[0] == "AT+M": cmdMotor()
+        if cmd_splited[0] == "AT+R": cmdResetMotorFaults()
         if cmd_splited[0] == "AT+S": cmdSummary()
         if cmd_splited[0] == "AT+Y3": cmdShutdown()
         if cmd_splited[0] == "AT+Y":

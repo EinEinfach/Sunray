@@ -50,6 +50,7 @@ class SerialRobotDriver: public RobotDriver {
     bool getMcuFirmwareVersion(String &name, String &ver) override;
     float getCpuTemperature() override;
     void requestMotorPwm(int leftPwm, int rightPwm, int mowPwm);
+    void requestResetMotorFaults();
     void requestMcuShutdown();
     void requestSummary();
     void requestVersion();
