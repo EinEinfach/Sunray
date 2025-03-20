@@ -15,7 +15,7 @@ from utime import sleep_ms
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.5.0" #Driver reset from sunray (AT+R)
+VER = "Landrumower RPI Pico 1.6.0" #Added HIL for better testing
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -44,6 +44,9 @@ pinMotorMowBrake = Pin(13, Pin.OUT)
 # activate debug
 DEBUG = False
 DEBUG2 = True
+
+# activate hil
+HIL = False
 
 # critical voltage pico will cut off power supply
 CRITICALVOLTAGE = 17
@@ -127,14 +130,15 @@ I2C0 = I2C(0, sda=Pin(16), scl=Pin(17), freq=400000, timeout=1000)
 
 # calibrate INA I2C devices
 try:
-    inabat = INA226(I2C0, INABATADRESS)
-    inamow = INA226(I2C0, INAMOWADRESS)
-    inaleft = INA226(I2C0, INALEFTADRESS)
-    inaright = INA226(I2C0, INARIGHTADRESS)
-    inabat.set_calibration()
-    inamow.set_calibration()
-    inaleft.set_calibration()
-    inaright.set_calibration()
+    if not HIL:
+        inabat = INA226(I2C0, INABATADRESS)
+        inamow = INA226(I2C0, INAMOWADRESS)
+        inaleft = INA226(I2C0, INALEFTADRESS)
+        inaright = INA226(I2C0, INARIGHTADRESS)
+        inabat.set_calibration()
+        inamow.set_calibration()
+        inaleft.set_calibration()
+        inaright.set_calibration()
 except Exception as e:
     print(f"I2C error, could not calibrate INA226 for current measurement: {e}")
 
@@ -240,13 +244,18 @@ def readSensorHighFrequency() -> None:
     global batVoltageLP
 
     try:
-        chgCurrentLP = inabat.current
-        chgCurrentLP = chgCurrentLP * CURRENTFACTOR
-        if chgCurrentLP <= 0.1:
-            chgCurrentLP = abs(chgCurrentLP)
-            chargerConnected = True
-            chgVoltage = batVoltageLP
+        if not HIL:
+            chgCurrentLP = inabat.current
+            chgCurrentLP = chgCurrentLP * CURRENTFACTOR
+            if chgCurrentLP <= 0.1:
+                chgCurrentLP = abs(chgCurrentLP)
+                chargerConnected = True
+                chgVoltage = batVoltageLP
+            else:
+                chargerConnected = False
+                chgVoltage = 0
         else:
+            chgCurrentLP = 1.0
             chargerConnected = False
             chgVoltage = 0
     except Exception as e:
@@ -317,14 +326,18 @@ def readMotorCurrent() -> None:
     global motorOverload
     global motorOverloadTimeout
     try:
-        motorLeftCurrLP = abs(inaleft.current)
-        motorLeftCurrLP = motorLeftCurrLP * CURRENTFACTOR
-        motorRightCurrLP = abs(inaright.current)
-        motorRightCurrLP = motorRightCurrLP * 10
-        mowCurrLP = abs(inamow.current)
-        mowCurrLP = mowCurrLP * CURRENTFACTOR
+        if not HIL:
+            motorLeftCurrLP = abs(inaleft.current)
+            motorLeftCurrLP = motorLeftCurrLP * CURRENTFACTOR
+            motorRightCurrLP = abs(inaright.current)
+            motorRightCurrLP = motorRightCurrLP * 10
+            mowCurrLP = abs(inamow.current)
+            mowCurrLP = mowCurrLP * CURRENTFACTOR
+        else:
+            motorLeftCurrLP = 0
+            motorRightCurrLP = 0
+            mowCurrLP = 0
     except Exception as e:
-        pass
         print(f"Error while reading INA(Motors) data: {e}")
 
     if mowCurrLP > 3 or motorLeftCurrLP > 1.5 or motorRightCurrLP > 1.5:
