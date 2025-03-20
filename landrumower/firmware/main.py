@@ -46,7 +46,7 @@ DEBUG = False
 DEBUG2 = True
 
 # activate hil
-HIL = True
+HIL = False
 
 # critical voltage pico will cut off power supply
 CRITICALVOLTAGE = 17
