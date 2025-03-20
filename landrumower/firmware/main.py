@@ -15,7 +15,7 @@ from utime import sleep_ms
 # local imports
 from ina226 import INA226
 
-VER = "Landrumower RPI Pico 1.6.0" #Added HIL for better testing
+VER = "Landrumower RPI Pico 1.7.0" #Non blocking motor fault reset
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -46,7 +46,7 @@ DEBUG = False
 DEBUG2 = True
 
 # activate hil
-HIL = False
+HIL = True
 
 # critical voltage pico will cut off power supply
 CRITICALVOLTAGE = 17
@@ -105,6 +105,8 @@ ovCheck = 0
 enableTractionBrakesLeft = False
 enableTractionBrakesRight = False
 chargerConnected = False
+motorControlLocked = False
+motorConrolLockedTime = time.ticks_add(time.ticks_ms(), 0)
 
 cmd = ""
 cmdResponse = ""
@@ -205,37 +207,44 @@ def motor() -> None:
     global enableTractionBrakesRight
     global leftSpeedSet
     global rightSpeedSet
+    global motorControlLocked
+    global motorConrolLockedTime
 
     enableTractionBrakesLeft = False
     enableTractionBrakesRight = False
 
-    if motorOverload:
-        leftSpeedSet = 0
-        rightSpeedSet = 0
-    
-    # traction brakes
-    if leftSpeedSet == 0:
-        enableTractionBrakesLeft = True
-    if rightSpeedSet == 0:
-        enableTractionBrakesRight = True
-    
-    # left traction motor
-    if leftSpeedSet <= 0:
-        pinMotorLeftDir.value(0)
-    else:
-        pinMotorLeftDir.value(1)
-    pinMotorLeftBrake.value(int(enableTractionBrakesLeft))
-    pinMotorLeftPWM.freq(FREQ)
-    pinMotorLeftPWM.duty_u16(int((abs(leftSpeedSet)*65535)/255))
+    # remove motor control lock after defined time (300ms)
+    if motorControlLocked and time.ticks_diff(motorConrolLockedTime, time.ticks_ms()) <= 0:
+        motorControlLocked = False
 
-    # right traction motor
-    if rightSpeedSet <= 0:
-        pinMotorRightDir.value(1)
-    else:
-        pinMotorRightDir.value(0)
-    pinMotorRightBrake.value(int(enableTractionBrakesRight))
-    pinMotorRightPWM.freq(FREQ)
-    pinMotorRightPWM.duty_u16(int((abs(rightSpeedSet)*65535)/255))
+    if not motorControlLocked:
+        if motorOverload:
+            leftSpeedSet = 0
+            rightSpeedSet = 0
+        
+        # traction brakes
+        if leftSpeedSet == 0:
+            enableTractionBrakesLeft = True
+        if rightSpeedSet == 0:
+            enableTractionBrakesRight = True
+        
+        # left traction motor
+        if leftSpeedSet <= 0:
+            pinMotorLeftDir.value(0)
+        else:
+            pinMotorLeftDir.value(1)
+        pinMotorLeftBrake.value(int(enableTractionBrakesLeft))
+        pinMotorLeftPWM.freq(FREQ)
+        pinMotorLeftPWM.duty_u16(int((abs(leftSpeedSet)*65535)/255))
+
+        # right traction motor
+        if rightSpeedSet <= 0:
+            pinMotorRightDir.value(1)
+        else:
+            pinMotorRightDir.value(0)
+        pinMotorRightBrake.value(int(enableTractionBrakesRight))
+        pinMotorRightPWM.freq(FREQ)
+        pinMotorRightPWM.duty_u16(int((abs(rightSpeedSet)*65535)/255))
 
 def readSensorHighFrequency() -> None:
     global chgVoltage
@@ -285,7 +294,10 @@ def readSensors() -> None:
     # battery voltage
     w = 0.99
     try:
-        batVoltage = inabat.bus_voltage + inabat.shunt_voltage 
+        if not HIL:
+            batVoltage = inabat.bus_voltage + inabat.shunt_voltage 
+        else:
+            batVoltage = 28.0
     except Exception as e:
         print(f"Error while reading INA(Battery) data: {e}")
         batVoltage = 0
@@ -356,7 +368,7 @@ def keepPowerOn() -> None:
         if requestShutdown:
             print("Main unit requests shutdown. Delay time started")
         else:
-            print("Battery oltage critical level reached")
+            print("Battery voltage critical level reached")
             print("SHUTTING DOWN")
             pinBatterySwitch.value(0)
     if switchBatteryDebounceCtr > 40:
@@ -390,6 +402,10 @@ def cmdMotor() -> None:
 
 # perform reset motor faults
 def cmdResetMotorFaults() -> None:
+    global motorControlLocked
+    global motorConrolLockedTime
+    motorConrolLockedTime = time.ticks_add(time.ticks_ms(), 300)
+    motorControlLocked = True
     if DEBUG:
         print("Motor faults request. Reseting drivers")
     pinMotorRightPWM.duty_u16(0) 
@@ -401,7 +417,6 @@ def cmdResetMotorFaults() -> None:
     pinMotorLeftBrake.value(0)
     s = f"R"
     cmdAnswer(s)
-    sleep_ms(200)
 
 # perform shutdown
 def cmdShutdown() -> None:
