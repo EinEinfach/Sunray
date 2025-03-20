@@ -1,5 +1,36 @@
 # Landrumower MCU (Raspberry Pi Pico) fimrware (based on RM18.ino Alfred MCU fw)
 
+# Configuration:
+
+# activate debug
+DEBUG = False
+DEBUG2 = True
+
+# activate hil
+HIL = True
+
+# critical voltage pico will cut off power supply
+CRITICALVOLTAGE = 17
+
+# bl drver specific settings
+FREQ = 20000 #JYQD2021 best results
+FREQ_MOW = 10000 #No data for mow bl driver available
+
+# INA
+INABATADRESS = 64 # (A0 and A1 on GND)
+INAMOWADRESS = 65 # (A0 on VCC)
+INALEFTADRESS = 68
+INARIGHTADRESS = 69
+
+# LCD
+LCD = True #If you don't have a LCD set this to False
+LCDADRESS = 39 
+LCD_NUM_ROWS = 2 
+LCD_NUM_COLUMNS = 16
+
+# Current facttor
+CURRENTFACTOR = 10 #If you changed your ina shunt from 100mOhm to 10mOhm set this value to 10, without any modifications set it to 1
+
 
 # packeage imports
 from machine import Pin
@@ -8,14 +39,17 @@ from machine import ADC
 from machine import I2C
 from machine import UART
 from machine import WDT
-import time
 
+import time
 from utime import sleep_ms
 
 # local imports
 from ina226 import INA226
+from lcd_api import LcdApi
+from pico_i2c_lcd import I2cLcd
 
-VER = "Landrumower RPI Pico 1.7.0" #Non blocking motor fault reset
+VERNR = "1.8.0"
+VER = f"Landrumower RPI Pico {VERNR}" #Initial version for lcd support, reorganized file structure
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -40,28 +74,6 @@ pinMotorMowImp = Pin(10, Pin.IN)
 pinMotorMowPWM = PWM(Pin(11))
 pinMotorMowDir = Pin(12, Pin.OUT)
 pinMotorMowBrake = Pin(13, Pin.OUT)
-
-# activate debug
-DEBUG = False
-DEBUG2 = True
-
-# activate hil
-HIL = False
-
-# critical voltage pico will cut off power supply
-CRITICALVOLTAGE = 17
-
-# bl driver spec
-FREQ = 20000 #JYQD2021 best results
-FREQ_MOW = 10000 #No data for mow bl driver available
-
-# i2c adresses
-INABATADRESS = 64 # (A0 and A1 on GND)
-INAMOWADRESS = 65 # (A0 on VCC)
-INALEFTADRESS = 68
-INARIGHTADRESS = 69
-
-CURRENTFACTOR = 10 #If you changed your ina shunt from 100mOhm to 10mOhm set this value to 10, without any modifications set it to 1
 
 # global variables
 odomTicksLeft = 0
@@ -143,6 +155,13 @@ try:
         inaright.set_calibration()
 except Exception as e:
     print(f"I2C error, could not calibrate INA226 for current measurement: {e}")
+
+# calibrate LCD I2C device
+try:
+    if LCD:
+        lcd = I2cLcd(I2C0, LCDADRESS, LCD_NUM_ROWS, LCD_NUM_COLUMNS)
+except Exception as e:
+    print(f"I2C error, could not calibrate LCD: {e}")
 
 # cmd answer with crc
 def cmdAnswer(s: str) -> None:
@@ -525,6 +544,13 @@ if DEBUG2:
 pinMotorMowImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryMowISR)
 pinMotorLeftImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryLeftISR)
 pinMotorRightImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryRightISR)
+
+print(VER)
+if LCD:
+    lcd.clear()
+    lcd.putstr("booting...")
+    lcd.move_to(0, 1)
+    lcd.putstr(f"Ver: {VERNR}")
 
 # main loop
 while True:
