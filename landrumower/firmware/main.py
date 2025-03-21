@@ -48,8 +48,8 @@ from ina226 import INA226
 from lcd_api import LcdApi
 from pico_i2c_lcd import I2cLcd
 
-VERNR = "1.8.0"
-VER = f"Landrumower RPI Pico {VERNR}" #Initial version for lcd support, reorganized file structure
+VERNR = "1.9.0"
+VER = f"Landrumower RPI Pico {VERNR}" #Lcd support for motor driver recovery, changed logic in motor recovery (trying change the dirPin logic)
 
 # pin definition
 pinRain = ADC(Pin(28))
