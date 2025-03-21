@@ -4,10 +4,10 @@
 
 # activate debug
 DEBUG = False
-DEBUG2 = True
+DEBUG2 = False
 
 # activate hil
-HIL = True
+HIL = False
 
 # critical voltage pico will cut off power supply
 CRITICALVOLTAGE = 17
@@ -40,7 +40,7 @@ from machine import I2C
 from machine import UART
 from machine import WDT
 
-import time
+import time, sys, select
 from utime import sleep_ms
 
 # local imports
@@ -136,6 +136,10 @@ requestShutdown = False
 nextInfoTime = time.ticks_add(time.ticks_ms(), 0)
 lps = 0
 
+lcdRequestedMessage1 = ""
+lcdRequestedMessage2 = ""
+lcdPrintedMessage1 = ""
+lcdPrintedMessage2 = ""
 
 pin = Pin("LED", Pin.OUT)
 
@@ -248,22 +252,25 @@ def motor() -> None:
             enableTractionBrakesRight = True
         
         # left traction motor
-        if leftSpeedSet <= 0:
-            pinMotorLeftDir.value(0)
-        else:
+        if leftSpeedSet > 0:
             pinMotorLeftDir.value(1)
+        else:
+            pinMotorLeftDir.value(0)
         pinMotorLeftBrake.value(int(enableTractionBrakesLeft))
         pinMotorLeftPWM.freq(FREQ)
         pinMotorLeftPWM.duty_u16(int((abs(leftSpeedSet)*65535)/255))
 
         # right traction motor
-        if rightSpeedSet <= 0:
+        if rightSpeedSet > 0:
             pinMotorRightDir.value(1)
         else:
             pinMotorRightDir.value(0)
         pinMotorRightBrake.value(int(enableTractionBrakesRight))
         pinMotorRightPWM.freq(FREQ)
         pinMotorRightPWM.duty_u16(int((abs(rightSpeedSet)*65535)/255))
+    else:
+        if DEBUG:
+            print(f"Motor control locked. Time before unlock: {time.ticks_diff(motorConrolLockedTime, time.ticks_ms())}")
 
 def readSensorHighFrequency() -> None:
     global chgVoltage
@@ -423,7 +430,11 @@ def cmdMotor() -> None:
 def cmdResetMotorFaults() -> None:
     global motorControlLocked
     global motorConrolLockedTime
-    motorConrolLockedTime = time.ticks_add(time.ticks_ms(), 300)
+    global lcdRequestedMessage1
+    global lcdRequestedMessage2
+    lcdRequestedMessage1 = "motor drivers"
+    lcdRequestedMessage2 = "recovery"
+    motorConrolLockedTime = time.ticks_add(time.ticks_ms(), 400)
     motorControlLocked = True
     if DEBUG:
         print("Motor faults request. Reseting drivers")
@@ -458,6 +469,10 @@ def cmdVersion() -> None:
 
 # request summary
 def cmdSummary() -> None:
+    global lcdRequestedMessage1
+    global lcdRequestedMessage2
+    lcdRequestedMessage1 = f"{round(batVoltageLP, 2)}V/{round(chgCurrentLP, 2)}A"
+    lcdRequestedMessage2 = f""
     s = f"S,{batVoltageLP},{chgVoltage},{chgCurrentLP},{int(lift)},{int(bumper)},{int(raining)},{int(motorOverload)},{mowCurrLP},{motorLeftCurrLP},{motorRightCurrLP},{batteryTemp}"
     cmdAnswer(s)
 
@@ -473,7 +488,7 @@ def processCmd(checkCRC: bool) -> None:
     try:
         idx = cmd.rindex(",")
     except Exception as e:
-        print(f"Received data are corrupt: {e}")
+        print(f"Received data are corrupt. Data: {cmd}. Exception: {e}")
         return
     if idx < 1:
         if checkCRC:
@@ -513,19 +528,43 @@ def processCmd(checkCRC: bool) -> None:
 # process uart input
 def processConsole() -> None:
     global cmd
-    if UART0.any() > 0:
-        rawData = UART0.readline()
-        cmd = rawData.decode("ascii")
-        if DEBUG:
-            print(f"Received command: {cmd}")
-        processCmd(True)
-        if DEBUG:
-            print(f"Response: {cmdResponse}")
-        UART0.write(cmdResponse)
-        cmd = ""
+    if HIL:
+        #read input from usb in case of HIL (hardware in the loop)
+        if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+            rawData = sys.stdin.readline().strip()
+            cmd = rawData
+            print(f"Received command via USB: {cmd}")
+            processCmd(True)
+            print(cmdResponse)  # Send response back to USB console
+            cmd = ""
+    else:
+        #read input from uart (normal operation)
+        if UART0.any() > 0:
+            rawData = UART0.readline()
+            cmd = rawData.decode("ascii")
+            if DEBUG:
+                print(f"Received command: {cmd}")
+            processCmd(True)
+            if DEBUG:
+                print(f"Response: {cmdResponse}")
+            UART0.write(cmdResponse)
+            cmd = ""
 
 def printInfo() -> None:
     print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltageLP}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, curr={motorLeftCurrLP},{motorRightCurrLP},{mowCurrLP},lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={rainLP, raining}, stop={stopButton}")
+
+def printLcd() -> None:
+    global lcdRequestedMessage1
+    global lcdRequestedMessage2
+    global lcdPrintedMessage1
+    global lcdPrintedMessage2
+    if lcdRequestedMessage1 != lcdPrintedMessage1 or lcdRequestedMessage2 != lcdPrintedMessage2:
+        lcdPrintedMessage1 = lcdRequestedMessage1
+        lcdPrintedMessage2 = lcdRequestedMessage2
+        lcd.clear()
+        lcd.putstr(lcdRequestedMessage1)
+        lcd.move_to(0, 1)
+        lcd.putstr(lcdRequestedMessage2)
 
 # setup
 # activate watchdog
@@ -545,12 +584,11 @@ pinMotorMowImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryMowISR)
 pinMotorLeftImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryLeftISR)
 pinMotorRightImp.irq(trigger=Pin.IRQ_RISING, handler=OdometryRightISR)
 
+# initial lcd message
+lcdRequestedMessage1 = "booting..." 
+lcdRequestedMessage2 = f"Ver: {VERNR}"
+
 print(VER)
-if LCD:
-    lcd.clear()
-    lcd.putstr("booting...")
-    lcd.move_to(0, 1)
-    lcd.putstr(f"Ver: {VERNR}")
 
 # main loop
 while True:
@@ -560,8 +598,9 @@ while True:
         motor()
         mower()
         readSensorHighFrequency()
-        
-    if time.ticks_diff(motorTimeout, time.ticks_ms()) <= 0:
+
+    # motor timeout
+    if time.ticks_diff(motorTimeout, time.ticks_ms()) <= 0: 
         # if DEBUG:
         #     print("Motor timeout")
         pin.value(1)
@@ -570,7 +609,7 @@ while True:
         mowSpeedSet = 0
     else:
         pin.value(0)
-
+        
     processConsole()
 
     if time.ticks_diff(nextInfoTime, time.ticks_ms()) <= 0:
@@ -578,6 +617,8 @@ while True:
         keepPowerOn()
         if DEBUG2:
             printInfo()
+        if LCD:
+            printLcd()
         lps = 0
     
     if time.ticks_diff(nextBatTime, time.ticks_ms()) <= 0:
