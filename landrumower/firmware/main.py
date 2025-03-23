@@ -48,8 +48,8 @@ from ina226 import INA226
 from lcd_api import LcdApi
 from pico_i2c_lcd import I2cLcd
 
-VERNR = "1.9.0"
-VER = f"Landrumower RPI Pico {VERNR}" #Lcd support for motor driver recovery, changed logic in motor recovery (trying change the dirPin logic)
+VERNR = "1.9.1"
+VER = f"Landrumower RPI Pico {VERNR}" # Bug fix in control of motor direction
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -144,7 +144,8 @@ lcdPrintedMessage2 = ""
 pin = Pin("LED", Pin.OUT)
 
 UART0 = UART(0, baudrate=115200, tx=Pin(0), rx=Pin(1), bits=8, parity=None, stop=1, timeout=10)
-I2C0 = I2C(0, sda=Pin(16), scl=Pin(17), freq=400000, timeout=1000)
+I2C0 = I2C(0, sda=Pin(16), scl=Pin(17), freq=400000, timeout=1000)  # I2C0 has 3.3V logic
+I2C1 = I2C(1, sda=Pin(14), scl=Pin(15), freq=400000, timeout=1000)  # I2C1 has 5.0V logic
 
 # calibrate INA I2C devices
 try:
@@ -163,7 +164,7 @@ except Exception as e:
 # calibrate LCD I2C device
 try:
     if LCD:
-        lcd = I2cLcd(I2C0, LCDADRESS, LCD_NUM_ROWS, LCD_NUM_COLUMNS)
+        lcd = I2cLcd(I2C1, LCDADRESS, LCD_NUM_ROWS, LCD_NUM_COLUMNS)
 except Exception as e:
     print(f"I2C error, could not calibrate LCD: {e}")
 
@@ -261,7 +262,7 @@ def motor() -> None:
         pinMotorLeftPWM.duty_u16(int((abs(leftSpeedSet)*65535)/255))
 
         # right traction motor
-        if rightSpeedSet > 0:
+        if rightSpeedSet < 0:
             pinMotorRightDir.value(1)
         else:
             pinMotorRightDir.value(0)
