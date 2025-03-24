@@ -9,6 +9,10 @@ DEBUG2 = False
 # activate hil
 HIL = False
 
+# overload current for motors
+OVERLOADCURRENT_GEAR = 0.8
+OVERLOADCURRENT_MOW = 3
+
 # critical voltage pico will cut off power supply
 CRITICALVOLTAGE = 17
 
@@ -44,12 +48,12 @@ import time, sys, select
 from utime import sleep_ms
 
 # local imports
-from ina226 import INA226
-from lcd_api import LcdApi
-from pico_i2c_lcd import I2cLcd
+from lib.ina226 import INA226
+from lib.lcd_api import LcdApi
+from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.9.1"
-VER = f"Landrumower RPI Pico {VERNR}" # Bug fix in control of motor direction
+VERNR = "1.10.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Trying to fix driver recovery function. Reduced overload current for gear motors
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -62,13 +66,13 @@ pinStopButton = Pin(21, Pin.IN, Pin.PULL_UP)
 
 pinMotorRightImp = Pin(2, Pin.IN)
 pinMotorRightPWM = PWM(Pin(3))
-pinMotorRightDir = Pin(4, Pin.OUT)
-pinMotorRightBrake = Pin(5, Pin.OUT)
+pinMotorRightDir = Pin(4, Pin.OUT, Pin.PULL_DOWN)
+pinMotorRightBrake = Pin(5, Pin.OUT, Pin.PULL_DOWN)
 
 pinMotorLeftImp = Pin(6, Pin.IN)
 pinMotorLeftPWM = PWM(Pin(7))
-pinMotorLeftDir = Pin(8, Pin.OUT)
-pinMotorLeftBrake = Pin(9, Pin.OUT)
+pinMotorLeftDir = Pin(8, Pin.OUT, Pin.PULL_DOWN)
+pinMotorLeftBrake = Pin(9, Pin.OUT, Pin.PULL_DOWN)
 
 pinMotorMowImp = Pin(10, Pin.IN)
 pinMotorMowPWM = PWM(Pin(11))
@@ -237,41 +241,51 @@ def motor() -> None:
     enableTractionBrakesLeft = False
     enableTractionBrakesRight = False
 
-    # remove motor control lock after defined time (300ms)
-    if motorControlLocked and time.ticks_diff(motorConrolLockedTime, time.ticks_ms()) <= 0:
-        motorControlLocked = False
-
     if not motorControlLocked:
-        if motorOverload:
-            leftSpeedSet = 0
-            rightSpeedSet = 0
+        pinMotorLeftBrake.value(0)
+        pinMotorLeftDir.value(0)
+        pinMotorLeftPWM.duty_u16(0)
         
-        # traction brakes
-        if leftSpeedSet == 0:
-            enableTractionBrakesLeft = True
-        if rightSpeedSet == 0:
-            enableTractionBrakesRight = True
-        
-        # left traction motor
-        if leftSpeedSet > 0:
-            pinMotorLeftDir.value(1)
-        else:
-            pinMotorLeftDir.value(0)
-        pinMotorLeftBrake.value(int(enableTractionBrakesLeft))
-        pinMotorLeftPWM.freq(FREQ)
-        pinMotorLeftPWM.duty_u16(int((abs(leftSpeedSet)*65535)/255))
+        pinMotorRightBrake.value(0)
+        pinMotorRightDir.value(0)
+        pinMotorRightPWM.duty_u16(0)
 
-        # right traction motor
-        if rightSpeedSet < 0:
-            pinMotorRightDir.value(1)
-        else:
-            pinMotorRightDir.value(0)
-        pinMotorRightBrake.value(int(enableTractionBrakesRight))
-        pinMotorRightPWM.freq(FREQ)
-        pinMotorRightPWM.duty_u16(int((abs(rightSpeedSet)*65535)/255))
-    else:
+        pinMotorMowBrake.value(0)
+        pinMotorMowDir.value(0)
+        pinMotorMowPWM.duty_u16(0)
         if DEBUG:
             print(f"Motor control locked. Time before unlock: {time.ticks_diff(motorConrolLockedTime, time.ticks_ms())}")
+        return
+        
+    if motorOverload:
+        leftSpeedSet = 0
+        rightSpeedSet = 0
+        if DEBUG:
+            print(f"Motor overload. Time before unlock: {time.ticks_diff(motorOverloadTimeout, time.ticks_ms())}")
+    
+    # traction brakes
+    if leftSpeedSet == 0:
+        enableTractionBrakesLeft = True
+    if rightSpeedSet == 0:
+        enableTractionBrakesRight = True
+    
+    # left traction motor
+    if leftSpeedSet > 0:
+        pinMotorLeftDir.value(1)
+    else:
+        pinMotorLeftDir.value(0)
+    pinMotorLeftBrake.value(int(enableTractionBrakesLeft))
+    pinMotorLeftPWM.freq(FREQ)
+    pinMotorLeftPWM.duty_u16(int((abs(leftSpeedSet)*65535)/255))
+
+    # right traction motor
+    if rightSpeedSet < 0:
+        pinMotorRightDir.value(1)
+    else:
+        pinMotorRightDir.value(0)
+    pinMotorRightBrake.value(int(enableTractionBrakesRight))
+    pinMotorRightPWM.freq(FREQ)
+    pinMotorRightPWM.duty_u16(int((abs(rightSpeedSet)*65535)/255))
 
 def readSensorHighFrequency() -> None:
     global chgVoltage
@@ -369,7 +383,7 @@ def readMotorCurrent() -> None:
             motorLeftCurrLP = abs(inaleft.current)
             motorLeftCurrLP = motorLeftCurrLP * CURRENTFACTOR
             motorRightCurrLP = abs(inaright.current)
-            motorRightCurrLP = motorRightCurrLP * 10
+            motorRightCurrLP = motorRightCurrLP * CURRENTFACTOR
             mowCurrLP = abs(inamow.current)
             mowCurrLP = mowCurrLP * CURRENTFACTOR
         else:
@@ -377,9 +391,11 @@ def readMotorCurrent() -> None:
             motorRightCurrLP = 0
             mowCurrLP = 0
     except Exception as e:
+        motorOverload = True
+        motorOverloadTimeout = time.ticks_add(time.ticks_ms, 2000)
         print(f"Error while reading INA(Motors) data: {e}")
 
-    if mowCurrLP > 3 or motorLeftCurrLP > 1.5 or motorRightCurrLP > 1.5:
+    if mowCurrLP > OVERLOADCURRENT_MOW or motorLeftCurrLP > OVERLOADCURRENT_GEAR or motorRightCurrLP > OVERLOADCURRENT_GEAR:
         motorOverload = True
         motorOverloadTimeout = time.ticks_add(time.ticks_ms, 2000)
 
@@ -433,10 +449,10 @@ def cmdResetMotorFaults() -> None:
     global motorConrolLockedTime
     global lcdRequestedMessage1
     global lcdRequestedMessage2
-    lcdRequestedMessage1 = "motor drivers"
-    lcdRequestedMessage2 = "recovery"
     motorConrolLockedTime = time.ticks_add(time.ticks_ms(), 400)
     motorControlLocked = True
+    lcdRequestedMessage1 = "motor drivers"
+    lcdRequestedMessage2 = "recovery"
     if DEBUG:
         print("Motor faults request. Reseting drivers")
     pinMotorRightPWM.duty_u16(0) 
@@ -622,18 +638,24 @@ while True:
             printLcd()
         lps = 0
     
+    # next measure time for sensors
     if time.ticks_diff(nextBatTime, time.ticks_ms()) <= 0:
         nextBatTime = time.ticks_add(time.ticks_ms(), 100)
         readSensors()
-    
+
+    # next measure time for motor current
     if time.ticks_diff(nextMotorSenseTime, time.ticks_ms()) <= 0:
         nextMotorSenseTime = time.ticks_add(time.ticks_ms(), 100)
         readMotorCurrent()
     
+    # remove motor overload after defined time (2s)
     if time.ticks_diff(motorOverloadTimeout, time.ticks_ms()) <= 0:
         motorOverload = False
 
-    
+    # remove motor control lock after defined time (400ms)
+    if motorControlLocked and time.ticks_diff(motorConrolLockedTime, time.ticks_ms()) <= 0:
+        motorControlLocked = False
+
     lps += 1
     wdt.feed()
 pin.off()
