@@ -8,7 +8,7 @@
 #include "../../config.h"
 #include "../../ioboard.h"
 #include "../../robot.h"
-#include "../src/op.h"
+#include "../src/op/op.h"
 
 #define COMM  ROBOT
 
