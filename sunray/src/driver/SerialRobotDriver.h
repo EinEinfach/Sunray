@@ -20,6 +20,7 @@ class SerialRobotDriver: public RobotDriver {
     String robotID;
     String mcuFirmwareName;
     String mcuFirmwareVersion;
+    String messageToMcu;
     int requestLeftPwm;
     int requestRightPwm;
     int requestMowPwm;        

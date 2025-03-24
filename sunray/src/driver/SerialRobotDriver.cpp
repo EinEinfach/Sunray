@@ -7,7 +7,6 @@
 #include "SerialRobotDriver.h"
 #include "../../config.h"
 #include "../../ioboard.h"
-#include "../../robot.h"
 
 #define COMM  ROBOT
 
@@ -57,6 +56,7 @@ void SerialRobotDriver::begin(){
   ledStateShutdown = false;  
   ledStateError = false;
   ledStateShutdown = false;
+  messageToMcu = "booting...";
 
   #ifdef __linux__
     CONSOLE.println("reading robot ID...");
@@ -190,13 +190,8 @@ void SerialRobotDriver::requestVersion(){
 // request MCU summary
 void SerialRobotDriver::requestSummary(){
   String req;
-  req += "AT+S,";  
-  if (stateOpText == "idle") req += "0";
-  else if (stateOpText == "mow") req += "1";
-  else if (stateOpText == "charge") req += "2";
-  else if (stateOpText == "error") req += "3";
-  else if (stateOpText == "dock") req += "4";
-  else req += "-1";
+  req += "AT+S,"; 
+  req += messageToMcu; 
   sendRequest(req);
   cmdSummaryCounter++;
 }

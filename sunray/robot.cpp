@@ -1052,6 +1052,9 @@ void run(){
 
     // update operation type      
     stateOp = activeOp->getGoalOperationType();  
+    #ifdef DRV_SERIAL_ROBOT
+      robotDriver.messageToMcu = activeOp->name();
+    #endif
             
   }   // if (millis() >= nextControlTime)
     

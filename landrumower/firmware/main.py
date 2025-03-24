@@ -52,8 +52,8 @@ from lib.ina226 import INA226
 from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.12.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Fill up the lcd with spaces to clear the old message
+VERNR = "1.13.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Switch to string from sunray to display current state
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -506,19 +506,7 @@ def cmdSummary() -> None:
     lcdRequestedMessage2 = f"{round(batVoltageLP, 1)}V/{round(chgCurrentLP, 1)}A"
     cmd_splited = cmd.split(",")
     if len(cmd_splited) > 1:
-        roverState = int(cmd_splited[1])
-        if roverState == 0:
-            lcdRequestedMessage1 = "Idle"
-        elif roverState == 1:
-            lcdPrintedMessage1 = "Mowing"
-        elif roverState == 2:
-            lcdPrintedMessage1 = "Docked"
-        elif roverState == 3:
-            lcdPrintedMessage1 = "Error"
-        elif roverState == 4:
-            lcdPrintedMessage1 = "Docking"
-        else:
-            lcdRequestedMessage1 = "Unknown"
+        lcdRequestedMessage1 = cmd_splited[1]
     s = f"S,{batVoltageLP},{chgVoltage},{chgCurrentLP},{int(lift)},{int(bumper)},{int(raining)},{int(motorOverload)},{mowCurrLP},{motorLeftCurrLP},{motorRightCurrLP},{batteryTemp}"
     cmdAnswer(s)
 
