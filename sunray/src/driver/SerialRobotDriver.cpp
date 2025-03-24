@@ -8,7 +8,6 @@
 #include "../../config.h"
 #include "../../ioboard.h"
 #include "../../robot.h"
-#include "../src/op/op.h"
 
 #define COMM  ROBOT
 
@@ -191,14 +190,12 @@ void SerialRobotDriver::requestVersion(){
 // request MCU summary
 void SerialRobotDriver::requestSummary(){
   String req;
-  OperationType op;
-  op = getGoalOperationType();
   req += "AT+S";  
-  if (op == OP_IDLE) req += "0";
-  else if (op == OP_MOW) req += "1";
-  else if (op == OP_CHARGE) req += "2";
-  else if (op == OP_ERROR) req += "3";
-  else if (op == OP_DOCK) req += "4";
+  if (stateOpText == "idle") req += "0";
+  else if (stateOpText == "mow") req += "1";
+  else if (stateOpText == "charge") req += "2";
+  else if (stateOpText == "error") req += "3";
+  else if (stateOpText == "dock") req += "4";
   else req += "-1";
   sendRequest(req);
   cmdSummaryCounter++;
