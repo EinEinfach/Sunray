@@ -52,8 +52,8 @@ from lib.ina226 import INA226
 from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.13.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Switch to string from sunray to display current state
+VERNR = "1.13.1"
+VER = f"Landrumower RPI Pico {VERNR}" # Fix length of displayed message due to missing ljust method in micropython
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -593,8 +593,12 @@ def printLcd() -> None:
     global lcdPrintedMessage1
     global lcdPrintedMessage2
     if lcdRequestedMessage1 != lcdPrintedMessage1 or lcdRequestedMessage2 != lcdPrintedMessage2:
-        lcdPrintedMessage1 = lcdRequestedMessage1.ljust(LCD_NUM_COLUMNS)
-        lcdPrintedMessage2 = lcdRequestedMessage2.ljust(LCD_NUM_COLUMNS)
+        lcdPrintedMessage1 = lcdRequestedMessage1
+        lcdPrintedMessage2 = lcdRequestedMessage2
+        if len(lcdPrintedMessage1) < LCD_NUM_COLUMNS:
+            lcdPrintedMessage1 = lcdRequestedMessage1 + " " * (LCD_NUM_COLUMNS - len(lcdRequestedMessage1))
+        if len(lcdPrintedMessage2) < LCD_NUM_COLUMNS:
+            lcdPrintedMessage2 = lcdRequestedMessage2 + " " * (LCD_NUM_COLUMNS - len(lcdRequestedMessage2))
         #lcd.clear()
         lcd.move_to(0, 0)
         lcd.putstr(lcdRequestedMessage1)
