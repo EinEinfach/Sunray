@@ -52,8 +52,8 @@ from lib.ina226 import INA226
 from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.11.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Bug fix in driver recovery logic (1.10.0 does not work properly), support LCD messages from sunray
+VERNR = "1.12.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Fill up the lcd with spaces to clear the old message
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -605,8 +605,8 @@ def printLcd() -> None:
     global lcdPrintedMessage1
     global lcdPrintedMessage2
     if lcdRequestedMessage1 != lcdPrintedMessage1 or lcdRequestedMessage2 != lcdPrintedMessage2:
-        lcdPrintedMessage1 = lcdRequestedMessage1
-        lcdPrintedMessage2 = lcdRequestedMessage2
+        lcdPrintedMessage1 = lcdRequestedMessage1.ljust(LCD_NUM_COLUMNS)
+        lcdPrintedMessage2 = lcdRequestedMessage2.ljust(LCD_NUM_COLUMNS)
         #lcd.clear()
         lcd.move_to(0, 0)
         lcd.putstr(lcdRequestedMessage1)
