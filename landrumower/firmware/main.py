@@ -52,8 +52,8 @@ from lib.ina226 import INA226
 from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.10.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Trying to fix driver recovery function. Reduced overload current for gear motors
+VERNR = "1.11.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Bug fix in driver recovery logic (1.10.0 does not work properly), support LCD messages from sunray
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -140,6 +140,7 @@ requestShutdown = False
 nextInfoTime = time.ticks_add(time.ticks_ms(), 0)
 lps = 0
 
+lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 0)
 lcdRequestedMessage1 = ""
 lcdRequestedMessage2 = ""
 lcdPrintedMessage1 = ""
@@ -241,7 +242,7 @@ def motor() -> None:
     enableTractionBrakesLeft = False
     enableTractionBrakesRight = False
 
-    if not motorControlLocked:
+    if motorControlLocked:
         pinMotorLeftBrake.value(0)
         pinMotorLeftDir.value(0)
         pinMotorLeftPWM.duty_u16(0)
@@ -449,10 +450,14 @@ def cmdResetMotorFaults() -> None:
     global motorConrolLockedTime
     global lcdRequestedMessage1
     global lcdRequestedMessage2
+    global lcdPrioMessageTime
     motorConrolLockedTime = time.ticks_add(time.ticks_ms(), 400)
+    lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 5000)
     motorControlLocked = True
     lcdRequestedMessage1 = "motor drivers"
     lcdRequestedMessage2 = "recovery"
+    if LCD:
+        printLcd()
     if DEBUG:
         print("Motor faults request. Reseting drivers")
     pinMotorRightPWM.duty_u16(0) 
@@ -468,7 +473,15 @@ def cmdResetMotorFaults() -> None:
 # perform shutdown
 def cmdShutdown() -> None:
     global requestShutdown
+    global lcdRequestedMessage1
+    global lcdRequestedMessage2
+    global lcdPrioMessageTime
     requestShutdown = True
+    lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 10000)
+    lcdRequestedMessage1 = "shutdown"
+    lcdRequestedMessage2 = ""
+    if LCD:
+        printLcd()
     s = f"Y3"
     cmdAnswer(s)
 
@@ -486,10 +499,26 @@ def cmdVersion() -> None:
 
 # request summary
 def cmdSummary() -> None:
+    global cmd
     global lcdRequestedMessage1
     global lcdRequestedMessage2
-    lcdRequestedMessage1 = f"{round(batVoltageLP, 2)}V/{round(chgCurrentLP, 2)}A"
-    lcdRequestedMessage2 = f""
+    lcdRequestedMessage1 = f""
+    lcdRequestedMessage2 = f"{round(batVoltageLP, 1)}V/{round(chgCurrentLP, 1)}A"
+    cmd_splited = cmd.split(",")
+    if len(cmd_splited) > 1:
+        roverState = int(cmd_splited[1])
+        if roverState == 0:
+            lcdRequestedMessage1 = "Idle"
+        elif roverState == 1:
+            lcdPrintedMessage1 = "Mowing"
+        elif roverState == 2:
+            lcdPrintedMessage1 = "Docked"
+        elif roverState == 3:
+            lcdPrintedMessage1 = "Error"
+        elif roverState == 4:
+            lcdPrintedMessage1 = "Docking"
+        else:
+            lcdRequestedMessage1 = "Unknown"
     s = f"S,{batVoltageLP},{chgVoltage},{chgCurrentLP},{int(lift)},{int(bumper)},{int(raining)},{int(motorOverload)},{mowCurrLP},{motorLeftCurrLP},{motorRightCurrLP},{batteryTemp}"
     cmdAnswer(s)
 
@@ -578,7 +607,8 @@ def printLcd() -> None:
     if lcdRequestedMessage1 != lcdPrintedMessage1 or lcdRequestedMessage2 != lcdPrintedMessage2:
         lcdPrintedMessage1 = lcdRequestedMessage1
         lcdPrintedMessage2 = lcdRequestedMessage2
-        lcd.clear()
+        #lcd.clear()
+        lcd.move_to(0, 0)
         lcd.putstr(lcdRequestedMessage1)
         lcd.move_to(0, 1)
         lcd.putstr(lcdRequestedMessage2)
@@ -634,7 +664,7 @@ while True:
         keepPowerOn()
         if DEBUG2:
             printInfo()
-        if LCD:
+        if LCD and time.ticks_diff(lcdPrioMessageTime, time.ticks_ms()) <= 0:
             printLcd()
         lps = 0
     
