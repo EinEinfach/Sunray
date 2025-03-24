@@ -190,7 +190,7 @@ void SerialRobotDriver::requestVersion(){
 // request MCU summary
 void SerialRobotDriver::requestSummary(){
   String req;
-  req += "AT+S";  
+  req += "AT+S,";  
   if (stateOpText == "idle") req += "0";
   else if (stateOpText == "mow") req += "1";
   else if (stateOpText == "charge") req += "2";
