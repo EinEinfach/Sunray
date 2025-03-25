@@ -52,8 +52,8 @@ from lib.ina226 import INA226
 from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.15.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Sunray State over int value in AT+S command
+VERNR = "1.15.1"
+VER = f"Landrumower RPI Pico {VERNR}" # Fix issue with old characters in display
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -637,14 +637,14 @@ def printLcd() -> None:
         lcdPrintedMessage1 = lcdRequestedMessage1
         lcdPrintedMessage2 = lcdRequestedMessage2
         if len(lcdPrintedMessage1) < LCD_NUM_COLUMNS:
-            lcdPrintedMessage1 = ('{: <{}}'.format(lcdPrintedMessage1, LCD_NUM_COLUMNS))
+            lcdMessage1 = ('{: <{}}'.format(lcdPrintedMessage1, LCD_NUM_COLUMNS))
         if len(lcdPrintedMessage2) < LCD_NUM_COLUMNS:
-            lcdPrintedMessage2 = ('{: <{}}'.format(lcdPrintedMessage2, LCD_NUM_COLUMNS))
+            lcdMessage2 = ('{: <{}}'.format(lcdPrintedMessage2, LCD_NUM_COLUMNS))
         #lcd.clear()
         lcd.move_to(0, 0)
-        lcd.putstr(lcdRequestedMessage1)
+        lcd.putstr(lcdMessage1)
         lcd.move_to(0, 1)
-        lcd.putstr(lcdRequestedMessage2)
+        lcd.putstr(lcdMessage2)
 
 def secondLoop() -> None:
     while True:
