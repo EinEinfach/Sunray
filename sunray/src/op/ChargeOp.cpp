@@ -96,6 +96,8 @@ void ChargeOp::run(){
                 CONSOLE.print(timetable.mowingAllowed());
                 CONSOLE.print(", finishAndRestart=");                
                 CONSOLE.print(finishAndRestart);                
+                CONSOLE.print(", dockAfterFinish=");
+                CONSOLE.print(dockAfterFinish);
                 CONSOLE.println(")");
             }
             if (timetable.shouldAutostartNow()){
