@@ -1091,6 +1091,7 @@ void run(){
           robotDriver.messageToMcu = 11;
           break;
         default: robotDriver.messageToMcu = -1;
+      }
     #endif
             
   }   // if (millis() >= nextControlTime)
