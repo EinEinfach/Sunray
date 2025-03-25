@@ -10,8 +10,8 @@ DEBUG2 = False
 HIL = False
 
 # overload current for motors
-OVERLOADCURRENT_GEAR = 0.8
-OVERLOADCURRENT_MOW = 3
+OVERLOADCURRENT_GEAR = 10
+OVERLOADCURRENT_MOW = 10
 
 # critical voltage pico will cut off power supply
 CRITICALVOLTAGE = 17
@@ -44,7 +44,7 @@ from machine import I2C
 from machine import UART
 from machine import WDT
 
-import time, sys, select
+import time, sys, select, _thread
 from utime import sleep_ms
 
 # local imports
@@ -52,8 +52,8 @@ from lib.ina226 import INA226
 from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.13.1"
-VER = f"Landrumower RPI Pico {VERNR}" # Fix length of displayed message due to missing ljust method in micropython
+VERNR = "1.14.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Move display control to second core
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -140,6 +140,7 @@ requestShutdown = False
 nextInfoTime = time.ticks_add(time.ticks_ms(), 0)
 lps = 0
 
+lcdPrioMessage = False
 lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 0)
 lcdRequestedMessage1 = ""
 lcdRequestedMessage2 = ""
@@ -450,14 +451,14 @@ def cmdResetMotorFaults() -> None:
     global motorConrolLockedTime
     global lcdRequestedMessage1
     global lcdRequestedMessage2
+    global lcdPrioMessage
     global lcdPrioMessageTime
     motorConrolLockedTime = time.ticks_add(time.ticks_ms(), 400)
+    lcdPrioMessage = True
     lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 5000)
     motorControlLocked = True
     lcdRequestedMessage1 = "motor drivers"
     lcdRequestedMessage2 = "recovery"
-    if LCD:
-        printLcd()
     if DEBUG:
         print("Motor faults request. Reseting drivers")
     pinMotorRightPWM.duty_u16(0) 
@@ -475,13 +476,13 @@ def cmdShutdown() -> None:
     global requestShutdown
     global lcdRequestedMessage1
     global lcdRequestedMessage2
+    global lcdPrioMessage
     global lcdPrioMessageTime
     requestShutdown = True
-    lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 10000)
+    lcdPrioMessage = True
+    lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 30000)
     lcdRequestedMessage1 = "shutdown"
     lcdRequestedMessage2 = ""
-    if LCD:
-        printLcd()
     s = f"Y3"
     cmdAnswer(s)
 
@@ -592,18 +593,33 @@ def printLcd() -> None:
     global lcdRequestedMessage2
     global lcdPrintedMessage1
     global lcdPrintedMessage2
-    if lcdRequestedMessage1 != lcdPrintedMessage1 or lcdRequestedMessage2 != lcdPrintedMessage2:
+    global lcdPrioMessage
+    global lcdPrioMessageTime
+    if lcdPrioMessage:
+        lcdPrioMessage = False
+        lcd.clear()
+        lcd.move_to(0, 0)
+        lcd.putstr(lcdRequestedMessage1)
+        lcd.move_to(0, 1)
+        lcd.putstr(lcdRequestedMessage2)
+        return
+    if (lcdRequestedMessage1 != lcdPrintedMessage1 or lcdRequestedMessage2 != lcdPrintedMessage2) and time.ticks_diff(lcdPrioMessageTime, time.ticks_ms()) <= 0:
         lcdPrintedMessage1 = lcdRequestedMessage1
         lcdPrintedMessage2 = lcdRequestedMessage2
         if len(lcdPrintedMessage1) < LCD_NUM_COLUMNS:
-            lcdPrintedMessage1 = lcdRequestedMessage1 + " " * (LCD_NUM_COLUMNS - len(lcdRequestedMessage1))
+            lcdPrintedMessage1 = ('{: <{}}'.format(lcdPrintedMessage1, LCD_NUM_COLUMNS))
         if len(lcdPrintedMessage2) < LCD_NUM_COLUMNS:
-            lcdPrintedMessage2 = lcdRequestedMessage2 + " " * (LCD_NUM_COLUMNS - len(lcdRequestedMessage2))
+            lcdPrintedMessage2 = ('{: <{}}'.format(lcdPrintedMessage2, LCD_NUM_COLUMNS))
         #lcd.clear()
         lcd.move_to(0, 0)
         lcd.putstr(lcdRequestedMessage1)
         lcd.move_to(0, 1)
         lcd.putstr(lcdRequestedMessage2)
+
+def secondLoop() -> None:
+    while True:
+        printLcd();
+        sleep_ms(1000)
 
 # setup
 # activate watchdog
@@ -628,6 +644,10 @@ lcdRequestedMessage1 = "booting..."
 lcdRequestedMessage2 = f"Ver: {VERNR}"
 
 print(VER)
+
+# run display print on secont core
+if LCD:
+    _thread.start_new_thread(secondLoop, ())
 
 # main loop
 while True:
@@ -656,8 +676,8 @@ while True:
         keepPowerOn()
         if DEBUG2:
             printInfo()
-        if LCD and time.ticks_diff(lcdPrioMessageTime, time.ticks_ms()) <= 0:
-            printLcd()
+        # if LCD and time.ticks_diff(lcdPrioMessageTime, time.ticks_ms()) <= 0:
+        #     printLcd()
         lps = 0
     
     # next measure time for sensors
