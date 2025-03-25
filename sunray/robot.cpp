@@ -1053,47 +1053,34 @@ void run(){
     // update operation type      
     stateOp = activeOp->getGoalOperationType();  
     #ifdef DRV_SERIAL_ROBOT
-      switch (activeOp->name()){
-        case "Idle": 
-          robotDriver.messageToMcu = 0;
-          break;
-        case "Mow": 
-          robotDriver.messageToMcu = 1;
-          break;
-        case "Charge": 
-          robotDriver.messageToMcu = 2;
-          break;
-        case "Error": 
-          robotDriver.messageToMcu = 3;
-          break;
-        case "Dock": 
-          robotDriver.messageToMcu = 4;
-          break;
-        case "EscapeForward": 
-          robotDriver.messageToMcu = 5;
-          break;
-        case "EscapeReverse": 
-          robotDriver.messageToMcu = 6;
-          break;
-        case "GpsRebootRecovery": 
-          robotDriver.messageToMcu = 7;
-          break;
-        case "GpsWaitFix": 
-          robotDriver.messageToMcu = 8;
-          break;
-        case "GpsWaitFloat": 
-          robotDriver.messageToMcu = 9;
-          break;
-        case "ImuCalibration": 
-          robotDriver.messageToMcu = 10;
-          break;
-        case "KidnapWait": 
-          robotDriver.messageToMcu = 11;
-          break;
-        default: robotDriver.messageToMcu = -1;
+      if (activeOp->name() == "Idle"){
+        robotDriver.messageToMcu = 0;
+      } else if (activeOp->name() == "Mow") {
+        robotDriver.messageToMcu = 1;
+      } else if (activeOp->name() == "Charge") {
+        robotDriver.messageToMcu = 2;
+      } else if (activeOp->name() == "Error") {
+        robotDriver.messageToMcu = 3;
+      } else if (activeOp->name() == "Dock") {
+        robotDriver.messageToMcu = 4;
+      } else if (activeOp->name() == "EscapeForward") {
+        robotDriver.messageToMcu = 5;
+      } else if (activeOp->name() == "EscapeReverse") {
+        robotDriver.messageToMcu = 6;
+      } else if (activeOp->name() == "GpsRebootRecovery") {
+        robotDriver.messageToMcu = 7;
+      } else if (activeOp->name() == "GpsWaitFix") {
+        robotDriver.messageToMcu = 8;
+      } else if (activeOp->name() == "GpsWaitFloat") {
+        robotDriver.messageToMcu = 9;
+      } else if (activeOp->name() == "ImuCalibration") {
+        robotDriver.messageToMcu = 10;
+      } else if (activeOp->name() == "KidnapWait") {
+        robotDriver.messageToMcu = 11;
+      } else {
+        robotDriver.messageToMcu = -1;
       }
-    #endif
-            
+    #endif     
   }   // if (millis() >= nextControlTime)
     
   // ----- read serial input (BT/console) -------------
