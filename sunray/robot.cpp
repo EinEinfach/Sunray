@@ -1053,7 +1053,44 @@ void run(){
     // update operation type      
     stateOp = activeOp->getGoalOperationType();  
     #ifdef DRV_SERIAL_ROBOT
-      robotDriver.messageToMcu = activeOp->name();
+      switch (activeOp->name()){
+        case "Idle": 
+          robotDriver.messageToMcu = 0;
+          break;
+        case "Mow": 
+          robotDriver.messageToMcu = 1;
+          break;
+        case "Charge": 
+          robotDriver.messageToMcu = 2;
+          break;
+        case "Error": 
+          robotDriver.messageToMcu = 3;
+          break;
+        case "Dock": 
+          robotDriver.messageToMcu = 4;
+          break;
+        case "EscapeForward": 
+          robotDriver.messageToMcu = 5;
+          break;
+        case "EscapeReverse": 
+          robotDriver.messageToMcu = 6;
+          break;
+        case "GpsRebootRecovery": 
+          robotDriver.messageToMcu = 7;
+          break;
+        case "GpsWaitFix": 
+          robotDriver.messageToMcu = 8;
+          break;
+        case "GpsWaitFloat": 
+          robotDriver.messageToMcu = 9;
+          break;
+        case "ImuCalibration": 
+          robotDriver.messageToMcu = 10;
+          break;
+        case "KidnapWait": 
+          robotDriver.messageToMcu = 11;
+          break;
+        default: robotDriver.messageToMcu = -1;
     #endif
             
   }   // if (millis() >= nextControlTime)

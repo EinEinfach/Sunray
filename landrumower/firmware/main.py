@@ -52,8 +52,8 @@ from lib.ina226 import INA226
 from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.14.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Move display control to second core
+VERNR = "1.15.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Sunray State over int value in AT+S command
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -507,7 +507,9 @@ def cmdSummary() -> None:
     lcdRequestedMessage2 = f"{round(batVoltageLP, 1)}V/{round(chgCurrentLP, 1)}A"
     cmd_splited = cmd.split(",")
     if len(cmd_splited) > 1:
-        lcdRequestedMessage1 = cmd_splited[1]
+        lcdRequestedMessage1 = sunrayStateToText(int(cmd_splited[1]))
+        if DEBUG:
+            print(f"Sunray state: {lcdRequestedMessage1}")
     s = f"S,{batVoltageLP},{chgVoltage},{chgCurrentLP},{int(lift)},{int(bumper)},{int(raining)},{int(motorOverload)},{mowCurrLP},{motorLeftCurrLP},{motorRightCurrLP},{batteryTemp}"
     cmdAnswer(s)
 
@@ -587,6 +589,34 @@ def processConsole() -> None:
 
 def printInfo() -> None:
     print(f"tim={time.ticks_add(time.ticks_ms(), 0)}, lps={lps}, bat={batVoltageLP}V, chg={chgVoltage}V/{chgCurrentLP}A, mF={motorMowFault}, imp={odomTicksLeft},{odomTicksRight},{odomTicksMow}, curr={motorLeftCurrLP},{motorRightCurrLP},{mowCurrLP},lift={liftLeft},{liftRight}, bump={bumperX},{bumperY}, rain={rainLP, raining}, stop={stopButton}")
+
+def sunrayStateToText(sunrayState: int) -> str:
+    if sunrayState == 0:
+        return "idle"
+    elif sunrayState == 1:
+        return "mow"
+    elif sunrayState == 2:
+        return "charge"
+    elif sunrayState == 3:
+        return "error"
+    elif sunrayState == 4:
+        return "dock"
+    elif sunrayState == 5:
+        return "escape forward"
+    elif sunrayState == 6:
+        return "escape reverse"
+    elif sunrayState == 7:
+        return "gps revovery"
+    elif sunrayState == 8:
+        return "gps wait fix"
+    elif sunrayState == 9:
+        return "gps wait float"
+    elif sunrayState == 10:
+        return "imu calibration"
+    elif sunrayState == 11:
+        return "kidnap wait"
+    else:
+        return "unknown"
 
 def printLcd() -> None:
     global lcdRequestedMessage1

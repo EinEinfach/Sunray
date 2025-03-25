@@ -56,7 +56,7 @@ void SerialRobotDriver::begin(){
   ledStateShutdown = false;  
   ledStateError = false;
   ledStateShutdown = false;
-  messageToMcu = "booting...";
+  messageToMcu = -1;
 
   #ifdef __linux__
     CONSOLE.println("reading robot ID...");
