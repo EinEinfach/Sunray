@@ -11,6 +11,7 @@
 
 SFE_UBLOX_GPS configGPS; // used for f9p module configuration only
 
+#define USESTR2STR true
 
 // used to send .ubx log files via 'sendgps.py' to Arduino (also set GPS to Serial in config for this)
 //#define GPS_DUMP   1    
@@ -242,6 +243,10 @@ bool UBLOX::configure(){
 void UBLOX::reboot(){
   CONSOLE.println("rebooting GPS receiver...");
   //configGPS.hardReset();
+  if (USESTR2STR) {
+    Process p;
+    p.runShellCommand("systemctl restart str2str");
+  }
   configGPS.GNSSRestart();
 }
 
