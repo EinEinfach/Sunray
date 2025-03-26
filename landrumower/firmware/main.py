@@ -10,8 +10,8 @@ DEBUG2 = False
 HIL = False
 
 # overload current for motors
-OVERLOADCURRENT_GEAR = 10
-OVERLOADCURRENT_MOW = 10
+OVERLOADCURRENT_GEAR = 2
+OVERLOADCURRENT_MOW = 4
 
 # critical voltage pico will cut off power supply
 CRITICALVOLTAGE = 17
@@ -52,8 +52,8 @@ from lib.ina226 import INA226
 from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.15.1"
-VER = f"Landrumower RPI Pico {VERNR}" # Fix issue with old characters in display
+VERNR = "1.15.2"
+VER = f"Landrumower RPI Pico {VERNR}" # Correction in motor overload handling (Brake release, and speed set to 0)
 
 # pin definition
 pinRain = ADC(Pin(28))
@@ -259,35 +259,38 @@ def motor() -> None:
             print(f"Motor control locked. Time before unlock: {time.ticks_diff(motorConrolLockedTime, time.ticks_ms())}")
         return
         
-    if motorOverload:
-        leftSpeedSet = 0
-        rightSpeedSet = 0
-        if DEBUG:
-            print(f"Motor overload. Time before unlock: {time.ticks_diff(motorOverloadTimeout, time.ticks_ms())}")
-    
     # traction brakes
     if leftSpeedSet == 0:
         enableTractionBrakesLeft = True
     if rightSpeedSet == 0:
         enableTractionBrakesRight = True
+
+    # if motor overload the speed should be set to 0 and brakes shold be released (avoiding driver emergency mode)
+    if motorOverload:
+        leftSpeedSet = 0
+        rightSpeedSet = 0
+        enableTractionBrakesLeft = False
+        enableTractionBrakesRight = False
+        if DEBUG:
+            print(f"Motor overload. Time before unlock: {time.ticks_diff(motorOverloadTimeout, time.ticks_ms())}")
     
     # left traction motor
     if leftSpeedSet > 0:
         pinMotorLeftDir.value(1)
     else:
         pinMotorLeftDir.value(0)
-    pinMotorLeftBrake.value(int(enableTractionBrakesLeft))
     pinMotorLeftPWM.freq(FREQ)
     pinMotorLeftPWM.duty_u16(int((abs(leftSpeedSet)*65535)/255))
+    pinMotorLeftBrake.value(int(enableTractionBrakesLeft))
 
     # right traction motor
     if rightSpeedSet < 0:
         pinMotorRightDir.value(1)
     else:
         pinMotorRightDir.value(0)
-    pinMotorRightBrake.value(int(enableTractionBrakesRight))
     pinMotorRightPWM.freq(FREQ)
     pinMotorRightPWM.duty_u16(int((abs(rightSpeedSet)*65535)/255))
+    pinMotorRightBrake.value(int(enableTractionBrakesRight))
 
 def readSensorHighFrequency() -> None:
     global chgVoltage
