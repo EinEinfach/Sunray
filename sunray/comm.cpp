@@ -9,6 +9,7 @@
 #include "mqtt.h"
 #include "httpserver.h"
 #include "ble.h"
+#include "motor.h"
 
 #ifdef __linux__
   #include <BridgeClient.h>
@@ -95,6 +96,44 @@ void cmdTuneParam(){
   String s = F("CT");
   cmdAnswer(s);
 }
+
+// request tune motor param
+void cmdTuneMotorParam(){
+  if (cmd.length()<6) return;  
+  int counter = 0;
+  int paramIdx = -1;
+  int lastCommaIdx = 0;
+  CONSOLE.print("tuneMotorParam ");
+  for (int idx=0; idx < cmd.length(); idx++){
+    char ch = cmd[idx];
+    //Serial.print("ch=");
+    //Serial.println(ch);
+    if ((ch == ',') || (idx == cmd.length()-1)){
+      float floatValue = cmd.substring(lastCommaIdx+1, ch==',' ? idx : idx+1).toFloat();
+      if (counter == 1){                            
+        CONSOLE.print("Kp=");
+        CONSOLE.print(floatValue);
+        motor.motorLeftPID.Kp = floatValue;
+        motor.motorRightPID.Kp = floatValue;
+      } else if (counter == 2){                                      
+        CONSOLE.print(" Ti=");
+        CONSOLE.print(floatValue);
+        motor.motorLeftPID.Ki = floatValue;
+        motor.motorRightPID.Ki = floatValue;
+      } else if (counter == 3){                                      
+        CONSOLE.print(" Td=");
+        CONSOLE.println(floatValue);
+        motor.motorLeftPID.Kd = floatValue;
+        motor.motorRightPID.Kd = floatValue;
+      } 
+      counter++;
+      lastCommaIdx = idx;
+    }    
+  }      
+  String s = F("CM");
+  cmdAnswer(s);
+}
+
 
 // request operation
 void cmdControl(){
@@ -874,6 +913,7 @@ void processCmd(bool checkCrc, bool decrypt){
   if (cmd[3] == 'M') cmdMotor();
   if (cmd[3] == 'C'){ 
     if ((cmd.length() > 4) && (cmd[4] == 'T')) cmdTuneParam();
+    if ((cmd.length() > 4) && (cmd[4] == 'M')) cmdTuneMotorParam();
     else cmdControl();
   }
   if (cmd[3] == 'W') cmdWaypoint();
