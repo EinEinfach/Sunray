@@ -60,6 +60,7 @@ class Motor {
     PID motorRightPID;        
     void begin();
     void run();      
+    void controlTest();
     void test();
     void plot();
     void enableTractionMotors(bool enable);

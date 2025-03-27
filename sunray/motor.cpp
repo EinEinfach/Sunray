@@ -464,7 +464,7 @@ void Motor::sense(){
   if (millis() < nextSenseTime) return;
   nextSenseTime = millis() + 20;
   motorDriver.getMotorCurrent(motorLeftSense, motorRightSense, motorMowSense);
-  float lp = 0.995; // 0.9
+  float lp = 0.995; // 0.9setLinearAngularSpeed
   motorRightSenseLP = lp * motorRightSenseLP + (1.0-lp) * motorRightSense;
   motorLeftSenseLP = lp * motorLeftSenseLP + (1.0-lp) * motorLeftSense;
   motorMowSenseLP = lp * motorMowSenseLP + (1.0-lp) * motorMowSense; 
@@ -593,6 +593,40 @@ void Motor::dumpOdoTicks(int seconds){
   CONSOLE.println();               
 }
 
+void Motor::controlTest() {
+  CONSOLE.println("motor control test");
+  unsigned long nextInfoTime = 0;
+  unsigned long nextSetPointTime = 0;
+  unsigned long stopTime = millis() + 4000;  
+  int seconds = 0;
+  float speed;
+  for (int i=1; i<=5; i++) {
+    speed = i * 0.1;
+    while(millis() < stopTime){
+      if (millis() > nextSetPointTime){
+        nextSetPointTime = millis() + 100;
+        setLinearAngularSpeed(speed, 0, false);
+      }
+      if (millis() > nextInfoTime){
+        CONSOLE.print("SetPoint: ");
+        CONSOLE.print(motorLeftRpmSet);
+        CONSOLE.print(",");
+        CONSOLE.print(motorRightRpmSet);
+        CONSOLE.print(" CurrentValue: ");
+        CONSOLE.print(motorLeftRpmCurr);
+        CONSOLE.print(",");
+        CONSOLE.println(motorRightRpmCurr);
+        nextInfoTime = millis() + 1000;
+      }
+      sense();
+      watchdogReset();
+      robotDriver.run();
+    }
+    stopTime = millis() + 10000;
+    i++;
+  }
+  CONSOLE.println("motor test done - please ignore any IMU/GPS errors");
+}
 
 void Motor::test(){
   CONSOLE.println("motor test - 10 revolutions");

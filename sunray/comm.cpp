@@ -235,8 +235,14 @@ void cmdMotor(){
   cmdAnswer(s);
 }
 
+void cmdControlMotorTest(){
+  String s = F("E2");
+  cmdAnswer(s);
+  motor.controlTest();  
+}
+
 void cmdMotorTest(){
-  String s = F("E");
+  String s = F("E1");
   cmdAnswer(s);
   motor.test();  
 }
@@ -926,7 +932,10 @@ void processCmd(bool checkCrc, bool decrypt){
     else cmdStats();
   }
   if (cmd[3] == 'L') cmdClearStats();
-  if (cmd[3] == 'E') cmdMotorTest();  
+  if (cmd[3] == 'E') {
+    if (cmd[4] == '1') cmdMotorTest();
+    if (cmd[4] == '2') cmdControlMotorTest();
+  }
   if (cmd[3] == 'Q') cmdMotorPlot();  
   if (cmd[3] == 'O'){
     if (cmd.length() <= 4){
