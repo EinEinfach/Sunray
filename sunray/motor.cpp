@@ -597,18 +597,21 @@ void Motor::controlTest() {
   CONSOLE.println("motor control test");
   unsigned long nextInfoTime = 0;
   unsigned long nextSetPointTime = 0;
-  unsigned long stopTime = millis() + 4000;  
+  unsigned long stopTime = millis() + 5000;  
   int seconds = 0;
   float speed;
   for (int i=1; i<=5; i++) {
     speed = i * 0.1;
+    if (i % 2 == 0) speed = 0;
     while(millis() < stopTime){
       if (millis() > nextSetPointTime){
-        nextSetPointTime = millis() + 100;
+        nextSetPointTime = millis() + 500;
         setLinearAngularSpeed(speed, 0, false);
       }
       if (millis() > nextInfoTime){
-        CONSOLE.print("SetPoint: ");
+        CONSOLE.print("LinearSpeedSetPoint: ");
+        CONSOLE.print(speed);
+        CONSOLE.print(" SetPoint: ");
         CONSOLE.print(motorLeftRpmSet);
         CONSOLE.print(",");
         CONSOLE.print(motorRightRpmSet);
@@ -618,12 +621,11 @@ void Motor::controlTest() {
         CONSOLE.println(motorRightRpmCurr);
         nextInfoTime = millis() + 1000;
       }
-      sense();
       watchdogReset();
       robotDriver.run();
+      run();
     }
-    stopTime = millis() + 10000;
-    i++;
+    stopTime = millis() + 5000;
   }
   CONSOLE.println("motor test done - please ignore any IMU/GPS errors");
 }
