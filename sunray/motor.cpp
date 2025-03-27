@@ -614,11 +614,11 @@ void Motor::controlTest() {
       }
       if (millis() > nextInfoTime){
         CONSOLE.print("Parameters: ");
-        CONSOLE.print(MOTOR_PID_KP);
+        CONSOLE.print(motorLeftPID.Kp);
         CONSOLE.print(" ");
-        CONSOLE.print(MOTOR_PID_KI);
+        CONSOLE.print(motorLeftPID.Ki);
         CONSOLE.print(" ");
-        CONSOLE.print(MOTOR_PID_KD);
+        CONSOLE.print(motorLeftPID.Kd);
         CONSOLE.print(" LinearSpeedSetPoint: ");
         CONSOLE.print(speed);
         CONSOLE.print(" RpmSetPoint: ");
