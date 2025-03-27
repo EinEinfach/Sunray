@@ -597,7 +597,7 @@ void Motor::controlTest() {
   CONSOLE.println("motor control test");
   unsigned long nextInfoTime = 0;
   unsigned long nextSetPointTime = 0;
-  unsigned long stopTime = millis() + 5000;  
+  unsigned long stopTime = millis() + 10000;  
   int seconds = 0;
   float speed;
   for (int i=1; i<=5; i++) {
@@ -611,15 +611,15 @@ void Motor::controlTest() {
       if (millis() > nextInfoTime){
         CONSOLE.print("LinearSpeedSetPoint: ");
         CONSOLE.print(speed);
-        CONSOLE.print(" SetPoint: ");
+        CONSOLE.print(" RpmSetPoint: ");
         CONSOLE.print(motorLeftRpmSet);
         CONSOLE.print(",");
         CONSOLE.print(motorRightRpmSet);
-        CONSOLE.print(" CurrentValue: ");
+        CONSOLE.print(" Rpm: ");
         CONSOLE.print(motorLeftRpmCurr);
         CONSOLE.print(",");
         CONSOLE.println(motorRightRpmCurr);
-        nextInfoTime = millis() + 1000;
+        nextInfoTime = millis() + 100;
       }
       watchdogReset();
       robotDriver.run();
