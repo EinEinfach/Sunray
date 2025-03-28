@@ -613,7 +613,9 @@ void Motor::controlTest() {
         setLinearAngularSpeed(speed, 0, false);
       }
       if (millis() > nextInfoTime){
-        CONSOLE.print("Parameters: ");
+        CONSOLE.print("Time: ");
+        CONSOLE.print(millis());
+        CONSOLE.print(" Parameters: ");
         CONSOLE.print(motorLeftPID.Kp);
         CONSOLE.print(" ");
         CONSOLE.print(motorLeftPID.Ki);
@@ -623,11 +625,11 @@ void Motor::controlTest() {
         CONSOLE.print(speed);
         CONSOLE.print(" RpmSetPoint: ");
         CONSOLE.print(motorLeftRpmSet);
-        CONSOLE.print(",");
+        CONSOLE.print(" ");
         CONSOLE.print(motorRightRpmSet);
         CONSOLE.print(" Rpm: ");
         CONSOLE.print(motorLeftRpmCurr);
-        CONSOLE.print(",");
+        CONSOLE.print(" ");
         CONSOLE.println(motorRightRpmCurr);
         nextInfoTime = millis() + 100;
       }
