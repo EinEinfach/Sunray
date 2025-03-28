@@ -628,9 +628,9 @@ void Motor::controlTest() {
         CONSOLE.print(" ");
         CONSOLE.print(motorRightRpmSet);
         CONSOLE.print(" Rpm: ");
-        CONSOLE.print(motorLeftRpmCurr);
+        CONSOLE.print(motorLeftRpmCurrLP);
         CONSOLE.print(" ");
-        CONSOLE.println(motorRightRpmCurr);
+        CONSOLE.println(motorRightRpmCurrLP);
         nextInfoTime = millis() + 100;
       }
       watchdogReset();
