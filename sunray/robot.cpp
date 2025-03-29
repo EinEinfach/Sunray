@@ -805,7 +805,17 @@ bool detectObstacle(){
     float delta = sqrt( sq(dX) + sq(dY) );    
     if (delta < 0.05){
       if (GPS_MOTION_DETECTION){
-        CONSOLE.println("gps no motion => obstacle!");
+        CONSOLE.print("gps no motion => obstacle!");
+        CONSOLE.print(" (delta=");
+        CONSOLE.print(delta);
+        CONSOLE.print(" lastX=");
+        CONSOLE.print(lastGPSMotionX);
+        CONSOLE.print(" lastY=");
+        CONSOLE.print(lastGPSMotionY);
+        CONSOLE.print(" stateX=");
+        CONSOLE.print(stateX);
+        CONSOLE.print(" stateY=");
+        CONSOLE.println(stateY);
         statMowGPSMotionTimeoutCounter++;
         triggerObstacle();
         return true;
