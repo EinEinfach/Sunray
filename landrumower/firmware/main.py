@@ -194,8 +194,9 @@ def OdometryLeftISR(pin) -> None:
     global odomTicksLeft
 
     if pinMotorLeftImp.value() == 0: return
+    # eliminate spikes
     if time.ticks_diff(motorLeftTicksTimeout, time.ticks_ms()) > 0: return
-    motorLeftTicksTimeout = time.ticks_add(time.ticks_ms(), 1)
+    motorLeftTicksTimeout = time.ticks_add(time.ticks_ms(), 3)
     odomTicksLeft += 1
 
 def OdometryRightISR(pin) -> None:
@@ -203,8 +204,9 @@ def OdometryRightISR(pin) -> None:
     global odomTicksRight
 
     if pinMotorRightImp.value() == 0: return
+    # eliminate spikes
     if time.ticks_diff(motorRightTicksTimeout, time.ticks_ms()) > 0: return
-    motorRightTicksTimeout = time.ticks_add(time.ticks_ms(), 1)
+    motorRightTicksTimeout = time.ticks_add(time.ticks_ms(), 3)
     odomTicksRight += 1
 
 def mower() -> None:

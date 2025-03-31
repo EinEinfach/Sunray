@@ -1,3 +1,5 @@
 1. Pegelshifter for J2, J6, J7, J4 are wrong connected. J4 has to be parallel to J2 and J6 parallel to J7. Work arround is to connect left motor on J1 and right motor to J5
 2. Missing pull-up or pull-down resistance for rain or stop button
 3. I2C0 and I2C1 reserve connections and regular connection are supplied by 3.3V have to be checked if switching to 5V make more sence (e.g. LCD needs 5V and doesn't work on current solution). May be it make sence to let I2C0 on 3.3V and set I2C1 to 5V logic
+4. Low pass filter for speed entry (470R 68pF)
+5. Pull-ups or pull downs for each motor connection pin
