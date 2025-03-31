@@ -52,8 +52,8 @@ from lib.ina226 import INA226
 from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 
-VERNR = "1.15.2"
-VER = f"Landrumower RPI Pico {VERNR}" # Correction in motor overload handling (Brake release, and speed set to 0)
+VERNR = "1.15.3"
+VER = f"Landrumower RPI Pico {VERNR}" # Spikes elimination (Change from 1000Hz to 300Hz)
 
 # pin definition
 pinRain = ADC(Pin(28))
