@@ -10,8 +10,8 @@ DEBUG2 = False
 HIL = False
 
 # overload current for motors
-OVERLOADCURRENT_GEAR = 2
-OVERLOADCURRENT_MOW = 4
+OVERLOADCURRENT_GEAR = 10
+OVERLOADCURRENT_MOW = 10
 
 # critical voltage pico will cut off power supply
 CRITICALVOLTAGE = 17
