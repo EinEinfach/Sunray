@@ -218,7 +218,7 @@ void Motor::stopImmediately(bool includeMowerMotor){
     motorMowPWMSet = 0;
     motorMowPWMCurr = 0;    
   }
-  speedPWM(motorLeftPWMCurr, motorRightPWMCurr, motorMowPWMCurr);
+  speedPWM(motorLeftPWMCurr, motorRightPWMCurr, motorMowPWMCurr, rspeed, lspeed);
   // reset PID
   motorLeftPID.reset();
   motorRightPID.reset();
@@ -558,7 +558,7 @@ void Motor::control(){
     motorLeftPWMCurr = motorRightPWMCurr = 0;
   }
 
-  speedPWM(motorLeftPWMCurr, motorRightPWMCurr, motorMowPWMCurr);
+  speedPWM(motorLeftPWMCurr, motorRightPWMCurr, motorMowPWMCurr, 0, 0);
   /*if ((motorLeftPWMCurr != 0) || (motorRightPWMCurr != 0)){
     CONSOLE.print("PID curr=");
     CONSOLE.print(motorLeftRpmCurr);
@@ -686,7 +686,7 @@ void Motor::test(){
       robotDriver.run();
     }
   }  
-  speedPWM(0, 0, 0);
+  speedPWM(0, 0, 0, 0, 0);
   CONSOLE.println("motor test done - please ignore any IMU/GPS errors");
 }
 
@@ -739,7 +739,7 @@ void Motor::plot(){
         motorMowTicks = 0;      
       }
 
-      speedPWM(pwmLeft, pwmRight, pwmMow);
+      speedPWM(pwmLeft, pwmRight, pwmMow, 0, 0);
       if (pwmLeft >= 255){
         forward = false;
         cycles++; 
@@ -771,6 +771,6 @@ void Motor::plot(){
     watchdogReset();     
     robotDriver.run(); 
   }
-  speedPWM(0, 0, 0);
+  speedPWM(0, 0, 0, 0, 0);
   CONSOLE.println("motor plot done - please ignore any IMU/GPS errors");
 }
