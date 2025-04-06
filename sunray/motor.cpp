@@ -679,7 +679,7 @@ void Motor::test(){
         pwmRight = 0;      
       }
       
-      speedPWM(pwmLeft, pwmRight, 0);
+      speedPWM(pwmLeft, pwmRight, 0, 0, 0);
       sense();
       //delay(50);         
       watchdogReset();     
