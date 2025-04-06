@@ -445,7 +445,7 @@ void AmMotorDriver::setMotorDriver(int pinDir, int pinPWM, int speed, DriverChip
   }  
 }
     
-void AmMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm){  
+void AmMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm, float rightSpeed, float leftSpeed){  
   // remember speed sign during zero-transition
   if (leftPwm < 0) leftSpeedSign = -1;
   if (leftPwm > 0) leftSpeedSign = 1;

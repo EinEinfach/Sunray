@@ -47,6 +47,7 @@ void SerialRobotDriver::begin(){
   cmdSummaryResponseCounter = 0;
   cmdMotorCounter = 0;
   cmdSummaryCounter = 0;
+  requestedLeftSpeed = requestedRightSpeed = 0;
   requestLeftPwm = requestRightPwm = requestMowPwm = 0;
   robotID = "XX";
   ledStateWifiInactive = false;
@@ -198,7 +199,7 @@ void SerialRobotDriver::requestSummary(){
 
 
 // request MCU motor PWM
-void SerialRobotDriver::requestMotorPwm(int leftPwm, int rightPwm, int mowPwm){
+void SerialRobotDriver::requestMotorPwm(int leftPwm, int rightPwm, int mowPwm, float rightSpeed, float leftSpeed){
   String req;
   req += "AT+M,";
   req += rightPwm;      
@@ -206,6 +207,10 @@ void SerialRobotDriver::requestMotorPwm(int leftPwm, int rightPwm, int mowPwm){
   req += leftPwm;    
   req += ",";  
   req += mowPwm;
+  req += ",";
+  req += rightSpeed;
+  req += ",";
+  req += leftSpeed;
   //if (abs(mowPwm) > 0)
   //  req += "1";
   //else
@@ -443,7 +448,7 @@ void SerialRobotDriver::run(){
   processComm();
   if (millis() > nextMotorTime){
     nextMotorTime = millis() + 20; // 50 hz
-    requestMotorPwm(requestLeftPwm, requestRightPwm, requestMowPwm);
+    requestMotorPwm(requestLeftPwm, requestRightPwm, requestMowPwm, requestedRightSpeed, requestedLeftSpeed);
   }
   if (millis() > nextSummaryTime){
     nextSummaryTime = millis() + 500; // 2 hz
@@ -510,8 +515,10 @@ void SerialMotorDriver::begin(){
 void SerialMotorDriver::run(){
 }
 
-void SerialMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm){  
+void SerialMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm, float rightSpeed, float leftSpeed ){  
   //serialRobot.requestMotorPwm(leftPwm, rightPwm, mowPwm);
+  serialRobot.requestedRightSpeed = rightSpeed;
+  serialRobot.requestedLeftSpeed = leftSpeed;
   serialRobot.requestLeftPwm = leftPwm;
   serialRobot.requestRightPwm = rightPwm;
   // Alfred mowing motor driver seem to start start mowing motor more successfully with full PWM (100%) values...  

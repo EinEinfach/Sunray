@@ -79,6 +79,8 @@ void Motor::begin() {
   activateLinearSpeedRamp = USE_LINEAR_SPEED_RAMP;
   linearSpeedSet = 0;
   angularSpeedSet = 0;
+  rspeed = 0;
+  lspeed = 0;
   motorLeftRpmSet = 0;
   motorRightRpmSet = 0;
   motorMowPWMSet = 0;
@@ -119,7 +121,7 @@ void Motor::setMowMaxPwm( int val ){
   pwmMaxMow = val;
 }
 
-void Motor::speedPWM ( int pwmLeft, int pwmRight, int pwmMow )
+void Motor::speedPWM ( int pwmLeft, int pwmRight, int pwmMow, float speedRight, float speedLeft )
 {
   //Correct Motor Direction
   if (motorLeftSwapDir) pwmLeft *= -1;
@@ -130,7 +132,7 @@ void Motor::speedPWM ( int pwmLeft, int pwmRight, int pwmMow )
   pwmRight = min(pwmMax, max(-pwmMax, pwmRight));  
   pwmMow = min(pwmMaxMow, max(-pwmMaxMow, pwmMow)); 
   
-  motorDriver.setMotorPwm(pwmLeft, pwmRight, pwmMow);
+  motorDriver.setMotorPwm(pwmLeft, pwmRight, pwmMow, speedRight, speedLeft);
 }
 
 // linear: m/s
@@ -151,8 +153,8 @@ void Motor::setLinearAngularSpeed(float linear, float angular, bool useLinearRam
      linearSpeedSet = linear;
    }
    angularSpeedSet = angular;   
-   float rspeed = linearSpeedSet + angularSpeedSet * (wheelBaseCm /100.0 /2);          
-   float lspeed = linearSpeedSet - angularSpeedSet * (wheelBaseCm /100.0 /2);          
+   rspeed = linearSpeedSet + angularSpeedSet * (wheelBaseCm /100.0 /2);          
+   lspeed = linearSpeedSet - angularSpeedSet * (wheelBaseCm /100.0 /2);          
    // RPM = V / (2*PI*r) * 60
    motorRightRpmSet =  rspeed / (PI*(((float)wheelDiameter)/1000.0)) * 60.0;   
    motorLeftRpmSet = lspeed / (PI*(((float)wheelDiameter)/1000.0)) * 60.0;   
@@ -206,6 +208,8 @@ void Motor::setMowState(bool switchOn){
 void Motor::stopImmediately(bool includeMowerMotor){
   linearSpeedSet = 0;
   angularSpeedSet = 0;
+  rspeed = 0;
+  lspeed = 0;
   motorRightRpmSet = 0;
   motorLeftRpmSet = 0;      
   motorLeftPWMCurr = 0;
@@ -232,6 +236,8 @@ void Motor::run() {
   if (setLinearAngularSpeedTimeoutActive){
     if (millis() > setLinearAngularSpeedTimeout){
       setLinearAngularSpeedTimeoutActive = false;
+      rspeed = 0;
+      lspeed = 0;
       motorLeftRpmSet = 0;
       motorRightRpmSet = 0;
     }
