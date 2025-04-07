@@ -558,7 +558,7 @@ void Motor::control(){
     motorLeftPWMCurr = motorRightPWMCurr = 0;
   }
 
-  speedPWM(motorLeftPWMCurr, motorRightPWMCurr, motorMowPWMCurr, 0, 0);
+  speedPWM(motorLeftPWMCurr, motorRightPWMCurr, motorMowPWMCurr, rspeed, lspeed);
   /*if ((motorLeftPWMCurr != 0) || (motorRightPWMCurr != 0)){
     CONSOLE.print("PID curr=");
     CONSOLE.print(motorLeftRpmCurr);
