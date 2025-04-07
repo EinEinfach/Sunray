@@ -655,6 +655,8 @@ void Motor::test(){
   int seconds = 0;
   int pwmLeft = 200;
   int pwmRight = 200; 
+  float speedRight = 0;
+  float speedLeft = 0;
   bool slowdown = true;
   unsigned long stopTicks = ticksPerRevolution * 10;
   unsigned long nextControlTime = 0;
@@ -663,6 +665,7 @@ void Motor::test(){
       nextControlTime = millis() + 20;
       if ((slowdown) && ((motorLeftTicks + ticksPerRevolution  > stopTicks)||(motorRightTicks + ticksPerRevolution > stopTicks))){  //Letzte halbe drehung verlangsamen
         pwmLeft = pwmRight = 20;
+        speedRight = speedLeft = 0.5;
         slowdown = false;
       }    
       if (millis() > nextInfoTime){      
@@ -673,13 +676,15 @@ void Motor::test(){
       if(motorLeftTicks >= stopTicks)
       {
         pwmLeft = 0;
+        speedRight = 0;
       }  
       if(motorRightTicks >= stopTicks)
       {
         pwmRight = 0;      
+        speedLeft = 0;
       }
       
-      speedPWM(pwmLeft, pwmRight, 0, 0, 0);
+      speedPWM(pwmLeft, pwmRight, 0, speedRight, speedLeft);
       sense();
       //delay(50);         
       watchdogReset();     
