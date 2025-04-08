@@ -97,7 +97,7 @@ void ChargeOp::onChargerDisconnected(){
         retryTouchDock = true;
         retryTouchDockStopTime = millis() + 2000;
         motor.enableTractionMotors(true); // allow traction motors to operate                               
-        motor.setLinearAngularSpeed(0.05, 0);
+        motor.setLinearAngularSpeed(0.2, 0);
     } else {
         motor.enableTractionMotors(true); // allow traction motors to operate                               
         maps.setIsDocked(false);
