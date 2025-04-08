@@ -27,7 +27,7 @@
 #include "ble.h"
 #include "motor.h"
 #include "src/driver/AmRobotDriver.h"
-#include "src/driver/SerialRobotDriver.h"
+//#include "src/driver/SerialRobotDriver.h"
 #include "src/driver/MpuDriver.h"
 #include "src/driver/BnoDriver.h"
 #include "battery.h"
@@ -815,13 +815,15 @@ bool detectObstacleRotation(){
   if (imuDriver.imuFound){
     if (millis() > angularMotionStartTime + 3000) {                  
       if (fabs(stateDeltaSpeedLP) < 3.0/180.0 * PI){ // less than 3 degree/s yaw speed, e.g. due to obstacle
-        CONSOLE.println("no IMU rotation speed detected for requested rotation => assuming obstacle");    
+        CONSOLE.println("no IMU rotation speed detected for requested rotation => assuming obstacle"); 
+        CONSOLE.println(stateDeltaSpeedLP);   
         triggerObstacleRotation();
         return true;      
       }
     }
-    if (diffIMUWheelYawSpeedLP > 10.0/180.0 * PI) {  // yaw speed difference between wheels and IMU more than 8 degree/s, e.g. due to obstacle
-      CONSOLE.println("yaw difference between wheels and IMU for requested rotation => assuming obstacle");            
+    if (diffIMUWheelYawSpeedLP > 15.0/180.0 * PI) {  // yaw speed difference between wheels and IMU more than 8 degree/s, e.g. due to obstacle
+      CONSOLE.println("yaw difference between wheels and IMU for requested rotation => assuming obstacle");   
+      CONSOLE.println(diffIMUWheelYawSpeedLP);         
       triggerObstacleRotation();
       return true;            
     }    
