@@ -1225,8 +1225,8 @@ void outputConsole(){
     }
     controlLoops=0;    
     CONSOLE.print (statControlCycleTime);        
-    CONSOLE.print (" op=");    
-    CONSOLE.print (activeOp->getOpChain());    
+    //CONSOLE.print (" op=");    
+    //CONSOLE.print (activeOp->getOpChain());    
     //CONSOLE.print (stateOp);
     #ifdef __linux__
       CONSOLE.print (" mem=");
