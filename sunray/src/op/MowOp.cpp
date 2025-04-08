@@ -247,7 +247,7 @@ void MowOp::onKidnapped(bool state){
 void MowOp::onNoFurtherWaypoints(){
     CONSOLE.println("mowing finished!");
     if (!finishAndRestart){             
-        if (DOCKING_STATION){
+        if (DOCKING_STATION && dockAfterFinish){
             dockOp.setInitiatedByOperator(false);
             changeOp(dockOp);               
         } else {

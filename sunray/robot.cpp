@@ -133,6 +133,7 @@ float lastGPSMotionY = 0;
 unsigned long nextGPSMotionCheckTime = 0;
 
 bool finishAndRestart = false;
+bool dockAfterFinish = true;
 
 unsigned long nextToFTime = 0;
 unsigned long linearMotionStartTime = 0;

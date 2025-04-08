@@ -77,6 +77,10 @@ void ChargeOp::run(){
                 CONSOLE.print(dockOp.dockReasonRainTriggered);
                 CONSOLE.print(", dockOp.dockReasonRainAutoStartTime(min remain)=");
                 CONSOLE.print( ((int)(dockOp.dockReasonRainAutoStartTime - millis())) / 60000 );                
+                CONSOLE.print(", finishAndRestart=");                
+                CONSOLE.print(finishAndRestart);                
+                CONSOLE.print(", dockAfterFinish=");
+                CONSOLE.print(dockAfterFinish);
                 CONSOLE.println(")");
             }
             if ((DOCKING_STATION) && (!dockOp.initiatedByOperator)) {
