@@ -10,8 +10,8 @@ TICKSPERREVOLUTION = 340
 PICOMOTORCONTROL = True
 
 # acceleration pid
-KP = 1.0
-KI = 0.01
+KP = 6.0
+KI = 0.05
 KD = 0.01
 
 class Motor:
@@ -176,7 +176,7 @@ class Motor:
         self.currentTrqPwm = 0
         self.currentBrakePwm = 0 if self.brakePinHighActive else 65535
         self.motorControl.reset()
-        self.odomTicks = 0
+        # self.odomTicks = 0
 
     def handBrake(self) -> None:
         self.currentPwm = 0

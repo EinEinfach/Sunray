@@ -4,6 +4,8 @@
 
 # activate debug
 DEBUG = False
+INFO = True
+INFOTIME = 1000
 
 # activate hil
 HIL = False
@@ -52,8 +54,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.pid import Pid
 
-VERNR = "2.0.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Switch complete code logic to class based
+VERNR = "2.0.1"
+VER = f"Landrumower RPI Pico {VERNR}" # Avoiding crashing im processConsole
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -127,6 +129,7 @@ class PicoMowerDriver:
     # common
     requestShutdown: bool = False
     nextInfoTime: int = time.ticks_ms()
+    nextKeepPowerOnTime: int = time.ticks_ms()
     lps: int = 0
 
 
@@ -202,80 +205,87 @@ class PicoMowerDriver:
     
     # uart input
     def processConsole(self) -> None:
-        if HIL:
-            #read input from usb in case of HIL (hardware in the loop)
-            if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                rawData = sys.stdin.readline().strip()
-                self.cmd = rawData
-                print(f"Received command via USB: {self.cmd}")
-                self.processCmd(True)
-                print(self.cmdResponse)  # Send response back to USB console
-                self.cmd = ""
-        else:
-            #read input from uart (normal operation)
-            if self.uart0.any() > 0:
-                rawData = self.uart0.readline()
-                self.cmd = rawData.decode("ascii")
-                if DEBUG:
-                    print(f"Received command: {self.cmd}")
-                self.processCmd(True)
-                if DEBUG:
-                    print(f"Response: {self.cmdResponse}")
-                self.uart0.write(self.cmdResponse)
-                self.cmd = ""
+        try:
+            if HIL:
+                #read input from usb in case of HIL (hardware in the loop)
+                if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                    rawData = sys.stdin.readline().strip()
+                    self.cmd = rawData
+                    print(f"Received command via USB: {self.cmd}")
+                    self.processCmd(True)
+                    print(self.cmdResponse)  # Send response back to USB console
+                    self.cmd = ""
+            else:
+                #read input from uart (normal operation)
+                if self.uart0.any() > 0:
+                    rawData = self.uart0.readline()
+                    self.cmd = rawData.decode("ascii")
+                    if DEBUG:
+                        print(f"Received command: {self.cmd}")
+                    self.processCmd(True)
+                    if DEBUG:
+                        print(f"Response: {self.cmdResponse}")
+                    self.uart0.write(self.cmdResponse)
+                    self.cmd = ""
+        except Exception as e:
+            print(f"Received data are corrupt. Data: {self.cmd}. Exception: {e}")
+            self.cmd = ""
 
     # process command
     def processCmd(self, checkCrc: bool) -> None:
-        self.cmdResponse = ""
-        if len(self.cmd) < 4:
-            return
-        expectedCRC = 0
         try:
+            self.cmdResponse = ""
+            if len(self.cmd) < 4:
+                return
+            expectedCRC = 0
             idx = self.cmd.rindex(",")
+            if idx < 1:
+                if checkCrc:
+                    if DEBUG:
+                        print("CRC ERROR")
+                    return
+            else:
+                cmd_splited = self.cmd.split(",")
+                crc = cmd_splited[-1]
+                cmd_no_crc = self.cmd.replace(','+crc, '')
+                crc = hex(int(crc, 16))
+                expectedCRC = hex(sum(cmd_no_crc.encode('ascii')) % 256)
+                if expectedCRC != crc:
+                    if (checkCrc):
+                        if DEBUG:
+                            print("CRC ERROR")
+                            print(f'{crc}, {expectedCRC}')
+                        return
+                else:
+                    self.cmd = cmd_no_crc
+                if cmd_splited[0][0] != "A": return
+                if cmd_splited[0][1] != "T": return
+                if cmd_splited[0][2] != "+": return
+                if cmd_splited[0] == "AT+V": self.cmdVersion()
+                if cmd_splited[0] == "AT+M": self.cmdMotor()
+                if cmd_splited[0] == "AT+R": self.cmdResetMotorFaults()
+                if cmd_splited[0] == "AT+S": self.cmdSummary()
+                if cmd_splited[0] == "AT+Y3": self.cmdShutdown()
+                if cmd_splited[0] == "AT+Y":
+                    if len(self.cmd) <= 4:
+                        self.cmdTriggerWatchdog() # for developers
+                    else:
+                        pass
+                        #if cmd_splited[4] == "2": cmdGNSSReboot() # for developers
+                        #if cmd_splited[4] == "3": cmdSwitchOffRobot() # for developers
         except Exception as e:
             print(f"Received data are corrupt. Data: {self.cmd}. Exception: {e}")
             return
-        if idx < 1:
-            if checkCrc:
-                if DEBUG:
-                    print("CRC ERROR")
-                return
-        else:
-            cmd_splited = self.cmd.split(",")
-            crc = cmd_splited[-1]
-            cmd_no_crc = self.cmd.replace(','+crc, '')
-            crc = hex(int(crc, 16))
-            expectedCRC = hex(sum(cmd_no_crc.encode('ascii')) % 256)
-            if expectedCRC != crc:
-                if (checkCrc):
-                    if DEBUG:
-                        print("CRC ERROR")
-                        print(f'{crc}, {expectedCRC}')
-                    return
-            else:
-                self.cmd = cmd_no_crc
-            if cmd_splited[0][0] != "A": return
-            if cmd_splited[0][1] != "T": return
-            if cmd_splited[0][2] != "+": return
-            if cmd_splited[0] == "AT+V": self.cmdVersion()
-            if cmd_splited[0] == "AT+M": self.cmdMotor()
-            if cmd_splited[0] == "AT+R": self.cmdResetMotorFaults()
-            if cmd_splited[0] == "AT+S": self.cmdSummary()
-            if cmd_splited[0] == "AT+Y3": self.cmdShutdown()
-            if cmd_splited[0] == "AT+Y":
-                if len(self.cmd) <= 4:
-                    self.cmdTriggerWatchdog() # for developers
-                else:
-                    pass
-                    #if cmd_splited[4] == "2": cmdGNSSReboot() # for developers
-                    #if cmd_splited[4] == "3": cmdSwitchOffRobot() # for developers
     
     # cmd answer with crc
     def cmdAnswer(self, s: str) -> None:
-        if DEBUG:
-            print(f"Answer: {s}")
-        crc = hex(sum(s.encode('ascii')) % 256)
-        self.cmdResponse = s+","+crc+"\r\n"
+        try:
+            if DEBUG:
+                print(f"Answer: {s}")
+            crc = hex(sum(s.encode('ascii')) % 256)
+            self.cmdResponse = s+","+crc+"\r\n"
+        except Exception as e:
+            print(f"Cmd answer corrupt. Exception: {e}")
 
     def cmdVersion(self) -> None:
         s = f"V,{VER}"
@@ -284,27 +294,30 @@ class PicoMowerDriver:
     # request motor
     # AT+M,20,20,1
     def cmdMotor(self) -> None:
-        cmd_splited = self.cmd.split(",")
-        if len(cmd_splited) == 4:
-            right = int(cmd_splited[1])
-            left = int(cmd_splited[2])
-            mow = int(cmd_splited[3])
-        elif len(cmd_splited) == 6:
-            right = float(cmd_splited[4])
-            left = float(cmd_splited[5])
-            mow = int(cmd_splited[3])
-        else:
-            return
-        if DEBUG:
-            print(f"left={left}")
-            print(f"right={right}")
-            print(f"mow={mow}")
-        self.motorLeft.setSpeed(left)
-        self.motorRight.setSpeed(right)
-        self.motorMow.setSpeed(mow)
-        self.motorTimeout = time.ticks_add(time.ticks_ms(), 3000)
-        s = f"M,{self.motorRight.odomTicks},{self.motorLeft.odomTicks},{self.motorMow.odomTicks},{self.chgVoltage},{int(self.bumper)},{int(self.lift)},{int(self.stopButton)}"
-        self.cmdAnswer(s)
+        try:
+            cmd_splited = self.cmd.split(",")
+            if len(cmd_splited) == 4:
+                right = int(cmd_splited[1])
+                left = int(cmd_splited[2])
+                mow = int(cmd_splited[3])
+            elif len(cmd_splited) == 6:
+                right = float(cmd_splited[4])
+                left = float(cmd_splited[5])
+                mow = int(cmd_splited[3])
+            else:
+                return
+            if DEBUG:
+                print(f"left={left}")
+                print(f"right={right}")
+                print(f"mow={mow}")
+            self.motorLeft.setSpeed(left)
+            self.motorRight.setSpeed(right)
+            self.motorMow.setSpeed(mow)
+            self.motorTimeout = time.ticks_add(time.ticks_ms(), 30000)
+            s = f"M,{self.motorRight.odomTicks},{self.motorLeft.odomTicks},{self.motorMow.odomTicks},{self.chgVoltage},{int(self.bumper)},{int(self.lift)},{int(self.stopButton)}"
+            self.cmdAnswer(s)
+        except Exception as e:
+            print(f"Command motor invalid. Exception: {e}")
     
     # perform reset motor faults
     def cmdResetMotorFaults(self) -> None:
@@ -325,15 +338,18 @@ class PicoMowerDriver:
 
     # request summary
     def cmdSummary(self) -> None:
-        self.lcd1 = f""
-        self.lcd2  = f"{round(self.batVoltageLP, 1)}V/{round(self.chgCurrentLP, 1)}A"
-        cmd_splited = self.cmd.split(",")
-        if len(cmd_splited) > 1:
-            self.lcd1 = self.sunrayStateToText(int(cmd_splited[1]))
-            if DEBUG:
-                print(f"Sunray state: {self.lcd1}")
-        s = f"S,{self.batVoltageLP},{self.chgVoltage},{self.chgCurrentLP},{int(self.lift)},{int(self.bumper)},{int(self.raining)},{int(self.motorLeft.overload or self.motorRight.overload or self.motorMow.overload)},{self.motorMow.electricalCurrent},{self.motorLeft.electricalCurrent},{self.motorRight.electricalCurrent},{self.batteryTemp}"
-        self.cmdAnswer(s)
+        try:
+            self.lcd1 = f""
+            self.lcd2  = f"{round(self.batVoltageLP, 1)}V/{round(self.chgCurrentLP, 1)}A"
+            cmd_splited = self.cmd.split(",")
+            if len(cmd_splited) > 1:
+                self.lcd1 = self.sunrayStateToText(int(cmd_splited[1]))
+                if DEBUG:
+                    print(f"Sunray state: {self.lcd1}")
+            s = f"S,{self.batVoltageLP},{self.chgVoltage},{self.chgCurrentLP},{int(self.lift)},{int(self.bumper)},{int(self.raining)},{int(self.motorLeft.overload or self.motorRight.overload or self.motorMow.overload)},{self.motorMow.electricalCurrent},{self.motorLeft.electricalCurrent},{self.motorRight.electricalCurrent},{self.batteryTemp}"
+            self.cmdAnswer(s)
+        except Exception as e:
+            print(f"Command summary invalid. Exception: {e}")
 
     # perform shutdown
     def cmdShutdown(self) -> None:
@@ -416,6 +432,9 @@ class PicoMowerDriver:
             self.switchBatteryDebounceCtr = 0
 
         if self.switchBatteryDebounceCtr == 10 or self.switchBatteryDebounceCtr == 20 or self.switchBatteryDebounceCtr == 30:
+            self.lcdPrioMessage = True
+            self.lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 30000)
+            self.lcdPrio1 = "shutdown" + "." * (int(self.switchBatteryDebounceCtr/10))
             if self.requestShutdown:
                 print("Main unit requests shutdown. Delay time started")
             else:
@@ -427,17 +446,24 @@ class PicoMowerDriver:
             self.pinBatterySwitch.value(0)
     
     def printInfo(self) -> None:
-        print(f"""tim={time.ticks_add(time.ticks_ms(), 0)}, 
-              lps={self.lps}, 
-              bat={self.batVoltageLP}V, 
-              chg={self.chgVoltage}V/{self.chgCurrentLP}A, 
-              mF={self.motorMowFault}, 
-              imp={self.motorLeft.odomTicks},{self.motorRight.odomTicks},{self.motorMow.odomTicks}, 
-              curr={self.motorLeft.electricalCurrent},{self.motorRight.electricalCurrent},{self.motorMow.electricalCurrent},
-              lift={self.liftLeft},{self.liftRight}, 
-              bump={self.bumperX},{self.bumperY}, 
-              rain={self.rainLP, self.raining}, 
-              stop={self.stopButton}""")
+        print((f"tim={time.ticks_add(time.ticks_ms(), 0)}, "
+              f"lps={self.lps}, "
+              f"bat={self.batVoltageLP}V, "
+              f"chg={self.chgVoltage}V/{self.chgCurrentLP}A, "
+              f"mF={self.motorMowFault}, "
+              f"imp={self.motorLeft.odomTicks},{self.motorRight.odomTicks},{self.motorMow.odomTicks}, "
+              f"curr={self.motorLeft.electricalCurrent}, {self.motorRight.electricalCurrent}, {self.motorMow.electricalCurrent}, "
+              f"lift={self.liftLeft},{self.liftRight}, "
+              f"bump={self.bumperX},{self.bumperY}, "
+              f"rain={self.rainLP, self.raining}, "
+              f"stop={self.stopButton}, "
+              f"rightSp={self.motorRight.currentRpmSetPoint}, "
+              f"right={self.motorRight.currentRpmLp}"
+              f"speedLeft={self.motorLeft.currentRpmSetPoint}, "
+              f"left={self.motorLeft.currentRpmLp}"
+              f"speedMow={self.motorMow.currentRpmSetPoint}"
+              f"mow={self.motorMow.currentRpmLp}"
+              ))
 
     def readSensors(self) -> None:
         # battery voltage
@@ -501,7 +527,8 @@ class PicoMowerDriver:
             self.motorLeft.run()
             self.motorRight.run()
             self.motorMow.run()
-
+            
+            # sensor measure time (50Hz)
             if time.ticks_diff(self.nextMotorControlTime, time.ticks_ms()) <= 0:
                 self.nextMotorControlTime = time.ticks_add(time.ticks_ms(), 20)
                 self.readSensorHighFrequency()
@@ -515,11 +542,15 @@ class PicoMowerDriver:
             else:
                 self.led.value(0)
             
-            # next info time
-            if time.ticks_diff(self.nextInfoTime, time.ticks_ms()) <= 0:
-                self.nextInfoTime = time.ticks_add(time.ticks_ms(), 10000)    
+            # keep power on time (1Hz)
+            if time.ticks_diff(self.nextKeepPowerOnTime, time.ticks_ms()) <= 0:
+                self.nextKeepPowerOnTime = time.ticks_add(time.ticks_ms(), 1000)
                 self.keepPowerOn()
-                if DEBUG:
+            
+            # next info time (DEBUGTIME)
+            if time.ticks_diff(self.nextInfoTime, time.ticks_ms()) <= 0:
+                self.nextInfoTime = time.ticks_add(time.ticks_ms(), INFOTIME)    
+                if INFO:
                     self.printInfo()
                 self.lps = 0
             
