@@ -481,7 +481,7 @@ void Map::begin(){
 }
 
 long Map::calcMapCRC(){   
-  long crc = perimeterPoints.crc() + exclusions.crc() + dockPoints.crc() + mowPoints.crc();       
+  long crc = perimeterPoints.crc() + exclusions.crc() + dockPoints.crc() + mowPoints.crc(); 
   //CONSOLE.print("computed map crc=");  
   //CONSOLE.println(crc);  
   return crc;
