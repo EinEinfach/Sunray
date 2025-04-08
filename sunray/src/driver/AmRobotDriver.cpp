@@ -21,7 +21,7 @@
 #endif
 
 
-#define SUPER_SPIKE_ELIMINATOR 1  // advanced spike elimination  (experimental, comment out to disable)
+//#define SUPER_SPIKE_ELIMINATOR 1  // advanced spike elimination  (experimental, comment out to disable)
 
 
 volatile int odomTicksLeft  = 0;
@@ -112,7 +112,8 @@ void OdometryMowISR(){
   #else
     motorMowTicksTimeout = millis() + 1;
   #endif
-  odomTicksMow++;    
+  odomTicksMow++; 
+  asm("dsb");   
 }
 
 
@@ -128,7 +129,8 @@ void OdometryLeftISR(){
   #else
     motorLeftTicksTimeout = millis() + 1;
   #endif
-  odomTicksLeft++;    
+  odomTicksLeft++;   
+  asm("dsb"); 
 }
 
 void OdometryRightISR(){			
@@ -143,7 +145,8 @@ void OdometryRightISR(){
   #else
     motorRightTicksTimeout = millis() + 1;
   #endif
-  odomTicksRight++;        
+  odomTicksRight++; 
+  asm("dsb");       
   
   #ifdef TEST_PIN_ODOMETRY
     testValue = !testValue;
@@ -242,7 +245,7 @@ AmMotorDriver::AmMotorDriver(){
   JYQD.usePwmRamp = false;       // use a ramp to get to PWM value?    
   JYQD.faultActive = LOW;        // fault active level (LOW or HIGH)
   JYQD.resetFaultByToggleEnable = true; // reset a fault by toggling enable? 
-  JYQD.enableActive = HIGH;       // enable active level (LOW or HIGH)
+  JYQD.enableActive = LOW;       // enable active level (LOW or HIGH)
   JYQD.disableAtPwmZeroSpeed = false;  // disable driver at PWM zero speed? (brake function)
   JYQD.keepPwmZeroSpeed = false;  // keep PWM zero value (disregard minPwmSpeed at zero speed)?
   JYQD.minPwmSpeed = 0;          // minimum PWM speed your driver can operate
@@ -324,12 +327,14 @@ void AmMotorDriver::begin(){
   pinMode(pinMotorLeftDir, OUTPUT);
   pinMode(pinMotorLeftSense, INPUT);
   pinMode(pinMotorLeftFault, INPUT);
+  pinMode(pinRemoteSwitch, OUTPUT); //Brake für JYQD 2021 bei 0% PWM
 
   // right wheel motor
   pinMode(pinMotorRightPWM, OUTPUT);
   pinMode(pinMotorRightDir, OUTPUT);
   pinMode(pinMotorRightSense, INPUT);
   pinMode(pinMotorRightFault, INPUT);
+  pinMode(pinRemoteSpeed, OUTPUT); //Brake für JYQD 2021 bei 0% PWM
 
   // mower motor
   pinMode(pinMotorMowDir, OUTPUT);
@@ -442,6 +447,13 @@ void AmMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm){
   lastLeftPwm = leftPwm;  
   lastRightPwm = rightPwm;
   lastMowPwm = mowPwm;
+  
+  //Brake über RC Buchse für die JYQD 2021
+  if (leftPwm == 0) digitalWrite(pinRemoteSwitch, HIGH);
+    else digitalWrite(pinRemoteSwitch, LOW);
+  if (rightPwm == 0) digitalWrite(pinRemoteSpeed, HIGH);
+    else digitalWrite(pinRemoteSpeed, LOW);
+  //ENDE
 
   // apply motor PWMs
   setMotorDriver(pinMotorLeftDir, pinMotorLeftPWM, leftPwm, gearsDriverChip, leftSpeedSign);
@@ -499,6 +511,14 @@ void AmMotorDriver::resetMotorFaults(){
       digitalWrite(pinMotorMowEnable, mowDriverChip.enableActive);
     }
   }
+  //Rücksetzen der Fehler für den JYQD2021
+  digitalWrite(pinRemoteSwitch, LOW);
+  digitalWrite(pinRemoteSpeed, LOW);
+  digitalWrite(pinMotorLeftDir, LOW);
+  digitalWrite(pinMotorRightDir, LOW);
+  CONSOLE.println("Starting Recovery JYQD2021 Driver. Brake-Pins and Dir-Pins are LOW for 100ms");
+  delay(100);
+  //Ende
 }
 
 void AmMotorDriver::getMotorCurrent(float &leftCurrent, float &rightCurrent, float &mowCurrent){
@@ -580,12 +600,12 @@ void AmBatteryDriver::run(){
 
     
 float AmBatteryDriver::getBatteryVoltage(){
-  float voltage = ((float)ADC2voltage(analogRead(pinBatteryVoltage))) * batteryFactor;
+  float voltage = ((float)ADC2voltage(analogRead(pinBatteryVoltage))) * batteryFactor + 0.4;
   return voltage;  
 }
 
 float AmBatteryDriver::getChargeVoltage(){
-  float voltage = ((float)ADC2voltage(analogRead(pinChargeVoltage))) * batteryFactor;
+  float voltage = ((float)ADC2voltage(analogRead(pinChargeVoltage))) * batteryFactor + 0.4;
   return voltage;
 }
 
@@ -616,11 +636,11 @@ void AmBatteryDriver::keepPowerOn(bool flag){
 
 // ------------------------------------------------------------------------------------
 void BumperLeftInterruptRoutine(){
-  leftPressed = (digitalRead(pinBumperLeft) == LOW);  
+  leftPressed = (digitalRead(pinBumperLeft) == HIGH);  
 }
 
 void BumperRightInterruptRoutine(){
-  rightPressed = (digitalRead(pinBumperRight) == LOW);  
+  rightPressed = (digitalRead(pinBumperRight) == HIGH);  
 }
 
 
@@ -679,7 +699,7 @@ bool AmStopButtonDriver::triggered(){
 void AmRainSensorDriver::begin(){
   nextControlTime = 0;
   isRaining = false;  
-  pinMode(pinRain, INPUT);
+  pinMode(pinRain, INPUT_PULLUP);
 }
 
 void AmRainSensorDriver::run(){
@@ -705,7 +725,7 @@ void AmLiftSensorDriver::run(){
   unsigned long t = millis();
   if (t < nextControlTime) return;
   nextControlTime = t + 100;                                       // save CPU resources by running at 10 Hz
-  isLifted = (digitalRead(pinLift)== LOW);
+  isLifted = (digitalRead(pinLift)== HIGH);
 }
 
 bool AmLiftSensorDriver::triggered(){
