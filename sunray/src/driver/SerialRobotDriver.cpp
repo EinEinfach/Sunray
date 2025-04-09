@@ -193,6 +193,7 @@ void SerialRobotDriver::requestSummary(){
   String req;
   req += "AT+S,"; 
   req += messageToMcu; 
+  messageToMcu = "";
   sendRequest(req);
   cmdSummaryCounter++;
 }
