@@ -10,9 +10,9 @@ TICKSPERREVOLUTION = 340
 PICOMOTORCONTROL = True
 
 # acceleration pid
-KP = 6.0
-KI = 0.05
-KD = 0.01
+KP = 2.0
+KI = 0.01
+KD = 0.0
 
 class Motor:
     impMinTime = time.ticks_ms()
@@ -41,7 +41,6 @@ class Motor:
     electricalCurrent = 0.0
     overload = False
     overloadTimeout = 0
-    motorControl = Pid(KP, KI, KD, 0.01)
 
     def __init__(self, 
                  type: str,
@@ -63,6 +62,7 @@ class Motor:
         self.brakePinHighActive = brakePinHighActive
         self.directionPinHighPositive = directionPinHighPositive
         self.overLoadThreshold = overloadThreshold
+        self.motorControl = Pid(KP, KI, KD, 0.01)
     
     def setSpeed(self, setPoint: float) -> None:
         if not self.overload:

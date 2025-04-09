@@ -14,6 +14,14 @@ class Pid:
         self.kD = kD
         self.dT = dT
     
+    def setParameters(self, kP = None, kI = None, kD = None) -> None:
+        if kP != self.kP and kP != None:
+            self.kP = kP
+        if kI != self.kI and kI != None:
+            self.kI = kI
+        if kD != self.kD and kD != None:
+            self.kD = kD
+    
     def control(self, target, current) -> float:
         currentTime = time.ticks_ms()
         deltaTime = (currentTime - self.prevTime) /1000.0

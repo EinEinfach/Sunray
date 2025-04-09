@@ -3,12 +3,12 @@
 # Configuration:
 
 # activate debug
-DEBUG = False
-INFO = True
+DEBUG = True
+INFO = False
 INFOTIME = 1000
 
 # activate hil
-HIL = False
+HIL = True
 
 # overload current for motors
 OVERLOADCURRENT_GEAR = 10
@@ -28,7 +28,7 @@ INALEFTADRESS = 68
 INARIGHTADRESS = 69
 
 # LCD
-LCD = True #If you don't have a LCD set this to False
+LCD = False #If you don't have a LCD set this to False
 LCDADRESS = 39 
 LCD_NUM_ROWS = 2 
 LCD_NUM_COLUMNS = 16
@@ -54,8 +54,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.pid import Pid
 
-VERNR = "2.0.1"
-VER = f"Landrumower RPI Pico {VERNR}" # Avoiding crashing im processConsole
+VERNR = "2.1.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Bug fix in motor class in definition of pid control, pid parameters could be wrapped in AT+S message
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -212,7 +212,7 @@ class PicoMowerDriver:
                     rawData = sys.stdin.readline().strip()
                     self.cmd = rawData
                     print(f"Received command via USB: {self.cmd}")
-                    self.processCmd(True)
+                    self.processCmd(False)
                     print(self.cmdResponse)  # Send response back to USB console
                     self.cmd = ""
             else:
@@ -250,12 +250,11 @@ class PicoMowerDriver:
                 cmd_no_crc = self.cmd.replace(','+crc, '')
                 crc = hex(int(crc, 16))
                 expectedCRC = hex(sum(cmd_no_crc.encode('ascii')) % 256)
-                if expectedCRC != crc:
-                    if (checkCrc):
-                        if DEBUG:
-                            print("CRC ERROR")
-                            print(f'{crc}, {expectedCRC}')
-                        return
+                if expectedCRC != crc and checkCrc:
+                    if DEBUG:
+                        print("CRC ERROR")
+                        print(f'{crc}, {expectedCRC}')
+                    return
                 else:
                     self.cmd = cmd_no_crc
                 if cmd_splited[0][0] != "A": return
@@ -263,6 +262,7 @@ class PicoMowerDriver:
                 if cmd_splited[0][2] != "+": return
                 if cmd_splited[0] == "AT+V": self.cmdVersion()
                 if cmd_splited[0] == "AT+M": self.cmdMotor()
+                if cmd_splited[0] == "AT+E": self.cmdMotorControlTest()
                 if cmd_splited[0] == "AT+R": self.cmdResetMotorFaults()
                 if cmd_splited[0] == "AT+S": self.cmdSummary()
                 if cmd_splited[0] == "AT+Y3": self.cmdShutdown()
@@ -291,6 +291,34 @@ class PicoMowerDriver:
         s = f"V,{VER}"
         self.cmdAnswer(s)
     
+    # request motor control test
+    # AT+E
+    def cmdMotorControlTest(self) -> None:
+        loopCall = 1
+        while loopCall <= 5:
+            if loopCall%2 == 0:
+                testSpeed = 0
+            else:
+                testSpeed = 0.1 * loopCall
+                testSpeed = min(testSpeed, 0.4)
+            
+            self.motorLeft.setSpeed(testSpeed)
+            self.motorRight.setSpeed(testSpeed)
+            if testSpeed == 0:
+                testTime = time.ticks_add(time.ticks_ms(), 5000)
+            else:
+                testTime = time.ticks_add(time.ticks_ms(), 10000)
+            nextInfoTime = time.ticks_ms()
+            while time.ticks_diff(testTime, time.ticks_ms()) >= 0:
+                if time.ticks_diff(nextInfoTime, time.ticks_ms()) <= 0:
+                    nextInfoTime = time.ticks_add(time.ticks_ms(), 100)
+                    print(f"left pwm: {self.motorLeft.currentTrqPwm} left sp: {testSpeed} left: {self.motorLeft.currentSpeedLp} right pwm: {self.motorRight.currentTrqPwm} right sp: {testSpeed} right: {self.motorRight.currentSpeedLp}")
+                self.motorLeft.run()
+                self.motorRight.run()
+                time.sleep(0.003)
+                self.wdt.feed()
+            loopCall += 1
+
     # request motor
     # AT+M,20,20,1
     def cmdMotor(self) -> None:
@@ -342,10 +370,20 @@ class PicoMowerDriver:
             self.lcd1 = f""
             self.lcd2  = f"{round(self.batVoltageLP, 1)}V/{round(self.chgCurrentLP, 1)}A"
             cmd_splited = self.cmd.split(",")
-            if len(cmd_splited) > 1:
-                self.lcd1 = self.sunrayStateToText(int(cmd_splited[1]))
-                if DEBUG:
-                    print(f"Sunray state: {self.lcd1}")
+            for cmdDataIdx in range(len(cmd_splited)):
+                if cmdDataIdx == 1:
+                    self.lcd1 = self.sunrayStateToText(int(cmd_splited[1]))
+                    if DEBUG:
+                        print(f"Sunray state: {self.lcd1}")
+                elif cmdDataIdx == 2:
+                    self.motorLeft.motorControl.setParameters(kP = float(cmd_splited[2]))
+                    self.motorRight.motorControl.setParameters(kP = float(cmd_splited[2]))
+                elif cmdDataIdx == 3:
+                    self.motorLeft.motorControl.setParameters(kI = float(cmd_splited[3]))
+                    self.motorRight.motorControl.setParameters(kI = float(cmd_splited[3]))
+                elif cmdDataIdx == 4:
+                    self.motorLeft.motorControl.setParameters(kD = float(cmd_splited[4]))
+                    self.motorRight.motorControl.setParameters(kD = float(cmd_splited[4]))
             s = f"S,{self.batVoltageLP},{self.chgVoltage},{self.chgCurrentLP},{int(self.lift)},{int(self.bumper)},{int(self.raining)},{int(self.motorLeft.overload or self.motorRight.overload or self.motorMow.overload)},{self.motorMow.electricalCurrent},{self.motorLeft.electricalCurrent},{self.motorRight.electricalCurrent},{self.batteryTemp}"
             self.cmdAnswer(s)
         except Exception as e:
