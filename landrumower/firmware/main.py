@@ -49,13 +49,12 @@ from utime import sleep_ms
 
 # local imports
 from lib.ina226 import INA226
-from lib.lcd_api import LcdApi
 from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.pid import Pid
 
-VERNR = "2.1.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Bug fix in motor class in definition of pid control, pid parameters could be wrapped in AT+S message
+VERNR = "2.1.1"
+VER = f"Landrumower RPI Pico {VERNR}" # Do not reset pid if requested speed = 0 and current speed != 0
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -382,12 +381,12 @@ class PicoMowerDriver:
                     self.motorRight.motorControl.setParameters(kP = float(cmd_splited[2]))
                 elif cmdDataIdx == 3:
                     if DEBUG:
-                        print(f"Received new kP parameter: {cmd_splited[3]}")
+                        print(f"Received new kI parameter: {cmd_splited[3]}")
                     self.motorLeft.motorControl.setParameters(kI = float(cmd_splited[3]))
                     self.motorRight.motorControl.setParameters(kI = float(cmd_splited[3]))
                 elif cmdDataIdx == 4:
                     if DEBUG:
-                        print(f"Received new kP parameter: {cmd_splited[4]}")
+                        print(f"Received new kD parameter: {cmd_splited[4]}")
                     self.motorLeft.motorControl.setParameters(kD = float(cmd_splited[4]))
                     self.motorRight.motorControl.setParameters(kD = float(cmd_splited[4]))
             s = f"S,{self.batVoltageLP},{self.chgVoltage},{self.chgCurrentLP},{int(self.lift)},{int(self.bumper)},{int(self.raining)},{int(self.motorLeft.overload or self.motorRight.overload or self.motorMow.overload)},{self.motorMow.electricalCurrent},{self.motorLeft.electricalCurrent},{self.motorRight.electricalCurrent},{self.batteryTemp}"
@@ -501,11 +500,11 @@ class PicoMowerDriver:
               f"bump={self.bumperX},{self.bumperY}, "
               f"rain={self.rainLP, self.raining}, "
               f"stop={self.stopButton}, "
-              f"rightSp={self.motorRight.currentRpmSetPoint}, "
-              f"right={self.motorRight.currentRpmLp}"
-              f"speedLeft={self.motorLeft.currentRpmSetPoint}, "
-              f"left={self.motorLeft.currentRpmLp}"
-              f"speedMow={self.motorMow.currentRpmSetPoint}"
+              f"rightSp={self.motorRight.currentSpeedSetPoint}, "
+              f"right={self.motorRight.currentSpeedLp}, "
+              f"speedLeft={self.motorLeft.currentSpeedLp}, "
+              f"left={self.motorLeft.currentSpeedLp}, "
+              f"speedMow={self.motorMow.currentRpmSetPoint}, "
               f"mow={self.motorMow.currentRpmLp}"
               ))
 

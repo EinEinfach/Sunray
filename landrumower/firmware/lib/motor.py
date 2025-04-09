@@ -23,6 +23,7 @@ class Motor:
     mustStopTime = 0
     odomTicks = 0
     lastMeasuredTicks = 0
+    currentSpeedSetPoint = 0
     currentSpeed = 0
     currentSpeedLp = 0
     currentRpm = 0
@@ -66,7 +67,7 @@ class Motor:
     
     def setSpeed(self, setPoint: float) -> None:
         if not self.overload:
-
+            self.currentSpeedSetPoint = setPoint
             if setPoint < 0:
                 self.positiveDirection = False
             else:
@@ -78,6 +79,7 @@ class Motor:
                 self.currentRpmSetPoint = abs(setPoint)
         else:
             self.positiveDirection = True
+            self.currentSpeedSetPoint = 0
             self.currentRpmSetPoint = 0
     
     def setRpm(self, setPoint: int) -> None:
@@ -98,9 +100,12 @@ class Motor:
         currentTicks = self.odomTicks - self.lastMeasuredTicks
         self.lastMeasuredTicks = self.odomTicks
         self.currentRpm = 60000 * (float(currentTicks)/TICKSPERREVOLUTION) / (time.ticks_diff(time.ticks_ms(), self.lastMeasuredTime))
-        self.currentRpmLp = 0.3*self.currentRpm + 0.7*self.currentRpmLp
+        self.currentRpmLp = (0.3*self.currentRpm + 0.7*self.currentRpmLp)
         self.currentSpeed = 1000 * (math.pi * WHEELDIAMETER * float(currentTicks)/TICKSPERREVOLUTION) / (time.ticks_diff(time.ticks_ms(), self.lastMeasuredTime))
         self.currentSpeedLp = 0.3*self.currentSpeed + 0.7*self.currentSpeedLp
+        if self.currentRpmLp < 0.01:
+            self.currentRpmLp = 0.0
+            self.currentSpeedLp = 0.0
         self.lastMeasuredTime = time.ticks_ms()
         self.nextSpeedMeasureTime = time.ticks_add(time.ticks_ms(), 50)
 
@@ -109,16 +114,25 @@ class Motor:
         if time.ticks_diff(self.driverResetTimeout, time.ticks_ms()) > 0:
             return
         
-        # motor should be stopped
-        if self.currentRpmSetPoint == 0:
+        # motor should not move
+        if self.currentRpmSetPoint == 0 and self.currentRpm == 0:
             if self.mustStopTime == 0:
-                self.mustStopTime = time.ticks_add(time.ticks_ms(), 500)
+                self.mustStopTime = time.ticks_add(time.ticks_ms(), 50)
                 self.stop()
             if time.ticks_diff(self.mustStopTime, time.ticks_ms()) < 0 and self.currentRpm != 0:
                 self.handBrake()
             return
 
-        # motor should be running
+        # motor should be stopped
+        # if self.currentRpmSetPoint == 0:
+        #     if self.mustStopTime == 0:
+        #         self.mustStopTime = time.ticks_add(time.ticks_ms(), 500)
+        #         self.stop()
+        #     if time.ticks_diff(self.mustStopTime, time.ticks_ms()) < 0 and self.currentRpm != 0:
+        #         self.handBrake()
+        #     return
+
+        # motor should run
         if PICOMOTORCONTROL and self.type == 'gear':
             self.mustStopTime = 0
             self.brakeTimeStart = 0
