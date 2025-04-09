@@ -3,12 +3,12 @@
 # Configuration:
 
 # activate debug
-DEBUG = True
-INFO = False
+DEBUG = False
+INFO = True
 INFOTIME = 1000
 
 # activate hil
-HIL = True
+HIL = False
 
 # overload current for motors
 OVERLOADCURRENT_GEAR = 10
@@ -28,7 +28,7 @@ INALEFTADRESS = 68
 INARIGHTADRESS = 69
 
 # LCD
-LCD = False #If you don't have a LCD set this to False
+LCD = True #If you don't have a LCD set this to False
 LCDADRESS = 39 
 LCD_NUM_ROWS = 2 
 LCD_NUM_COLUMNS = 16
