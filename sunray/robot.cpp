@@ -1065,31 +1065,40 @@ void run(){
     stateOp = activeOp->getGoalOperationType();  
     #ifdef DRV_SERIAL_ROBOT
       if (activeOp->name() == "Idle"){
-        robotDriver.messageToMcu = 0;
+        robotDriver.messageToMcu = "0";
       } else if (activeOp->name() == "Mow") {
-        robotDriver.messageToMcu = 1;
+        robotDriver.messageToMcu = "1";
       } else if (activeOp->name() == "Charge") {
-        robotDriver.messageToMcu = 2;
+        robotDriver.messageToMcu = "2";
       } else if (activeOp->name() == "Error") {
-        robotDriver.messageToMcu = 3;
+        robotDriver.messageToMcu = "3";
       } else if (activeOp->name() == "Dock") {
-        robotDriver.messageToMcu = 4;
+        robotDriver.messageToMcu = "4";
       } else if (activeOp->name() == "EscapeForward") {
-        robotDriver.messageToMcu = 5;
+        robotDriver.messageToMcu = "5";
       } else if (activeOp->name() == "EscapeReverse") {
-        robotDriver.messageToMcu = 6;
+        robotDriver.messageToMcu = "6";
       } else if (activeOp->name() == "GpsRebootRecovery") {
-        robotDriver.messageToMcu = 7;
+        robotDriver.messageToMcu = "7";
       } else if (activeOp->name() == "GpsWaitFix") {
-        robotDriver.messageToMcu = 8;
+        robotDriver.messageToMcu = "8";
       } else if (activeOp->name() == "GpsWaitFloat") {
-        robotDriver.messageToMcu = 9;
+        robotDriver.messageToMcu = "9";
       } else if (activeOp->name() == "ImuCalibration") {
-        robotDriver.messageToMcu = 10;
+        robotDriver.messageToMcu = "10";
       } else if (activeOp->name() == "KidnapWait") {
-        robotDriver.messageToMcu = 11;
+        robotDriver.messageToMcu = "11";
       } else {
-        robotDriver.messageToMcu = -1;
+        robotDriver.messageToMcu = "-1";
+      }
+      if (motor.newPidParameters) {
+        robotDriver.messageToMcu += ",";
+        robotDriver.messageToMcu += String(motor.motorLeftPID.Kp); 
+        robotDriver.messageToMcu += ",";
+        robotDriver.messageToMcu += String(motor.motorLeftPID.Ki); 
+        robotDriver.messageToMcu += ",";
+        robotDriver.messageToMcu += String(motor.motorLeftPID.Kd); 
+        motor.newPidParameters = false;
       }
     #endif     
   }   // if (millis() >= nextControlTime)

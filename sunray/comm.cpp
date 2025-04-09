@@ -115,16 +115,19 @@ void cmdTuneMotorParam(){
         CONSOLE.print(floatValue);
         motor.motorLeftPID.Kp = floatValue;
         motor.motorRightPID.Kp = floatValue;
+        motor.newPidParameters = true;
       } else if (counter == 2){                                      
         CONSOLE.print(" Ti=");
         CONSOLE.print(floatValue);
         motor.motorLeftPID.Ki = floatValue;
         motor.motorRightPID.Ki = floatValue;
+        motor.newPidParameters = true;
       } else if (counter == 3){                                      
         CONSOLE.print(" Td=");
         CONSOLE.println(floatValue);
         motor.motorLeftPID.Kd = floatValue;
         motor.motorRightPID.Kd = floatValue;
+        motor.newPidParameters = true;
       } 
       counter++;
       lastCommaIdx = idx;

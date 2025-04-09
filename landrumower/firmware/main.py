@@ -376,12 +376,18 @@ class PicoMowerDriver:
                     if DEBUG:
                         print(f"Sunray state: {self.lcd1}")
                 elif cmdDataIdx == 2:
+                    if DEBUG:
+                        print(f"Received new kP parameter: {cmd_splited[2]}")
                     self.motorLeft.motorControl.setParameters(kP = float(cmd_splited[2]))
                     self.motorRight.motorControl.setParameters(kP = float(cmd_splited[2]))
                 elif cmdDataIdx == 3:
+                    if DEBUG:
+                        print(f"Received new kP parameter: {cmd_splited[3]}")
                     self.motorLeft.motorControl.setParameters(kI = float(cmd_splited[3]))
                     self.motorRight.motorControl.setParameters(kI = float(cmd_splited[3]))
                 elif cmdDataIdx == 4:
+                    if DEBUG:
+                        print(f"Received new kP parameter: {cmd_splited[4]}")
                     self.motorLeft.motorControl.setParameters(kD = float(cmd_splited[4]))
                     self.motorRight.motorControl.setParameters(kD = float(cmd_splited[4]))
             s = f"S,{self.batVoltageLP},{self.chgVoltage},{self.chgCurrentLP},{int(self.lift)},{int(self.bumper)},{int(self.raining)},{int(self.motorLeft.overload or self.motorRight.overload or self.motorMow.overload)},{self.motorMow.electricalCurrent},{self.motorLeft.electricalCurrent},{self.motorRight.electricalCurrent},{self.batteryTemp}"
