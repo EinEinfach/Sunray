@@ -11,7 +11,7 @@ PICOMOTORCONTROL = True
 
 # acceleration pid
 KP = 2.0
-KI = 0.01
+KI = 0.0
 KD = 0.0
 
 class Motor:
@@ -67,12 +67,19 @@ class Motor:
     
     def setSpeed(self, setPoint: float) -> None:
         if not self.overload:
+            # stop first if direction change
+            if self.currentSpeedSetPoint * setPoint < 0:
+                self.currentSpeedSetPoint = setPoint
+                self.positiveDirection = not self.positiveDirection
+                self.stop()
+                return
+            # set direction 
             self.currentSpeedSetPoint = setPoint
             if setPoint < 0:
                 self.positiveDirection = False
             else:
                 self.positiveDirection = True
-
+            # decision picontrol or not
             if PICOMOTORCONTROL and self.type == 'gear':
                 self.currentRpmSetPoint = abs(60 * setPoint/(math.pi * WHEELDIAMETER))
             else:
@@ -113,24 +120,15 @@ class Motor:
         # stop control if driver in reset state
         if time.ticks_diff(self.driverResetTimeout, time.ticks_ms()) > 0:
             return
-        
-        # motor should not move
-        if self.currentRpmSetPoint == 0 and self.currentRpm == 0:
+
+        # motor should be stopped
+        if self.currentRpmSetPoint == 0:
             if self.mustStopTime == 0:
                 self.mustStopTime = time.ticks_add(time.ticks_ms(), 50)
                 self.stop()
             if time.ticks_diff(self.mustStopTime, time.ticks_ms()) < 0 and self.currentRpm != 0:
                 self.handBrake()
             return
-
-        # motor should be stopped
-        # if self.currentRpmSetPoint == 0:
-        #     if self.mustStopTime == 0:
-        #         self.mustStopTime = time.ticks_add(time.ticks_ms(), 500)
-        #         self.stop()
-        #     if time.ticks_diff(self.mustStopTime, time.ticks_ms()) < 0 and self.currentRpm != 0:
-        #         self.handBrake()
-        #     return
 
         # motor should run
         if PICOMOTORCONTROL and self.type == 'gear':

@@ -1,7 +1,6 @@
 # Landrumower MCU (Raspberry Pi Pico) fimrware (based on RM18.ino Alfred MCU fw)
 
 # Configuration:
-
 # activate debug
 DEBUG = False
 INFO = True
@@ -45,7 +44,6 @@ from machine import UART
 from machine import WDT
 
 import time, sys, select, _thread
-from utime import sleep_ms
 
 # local imports
 from lib.ina226 import INA226
@@ -53,8 +51,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.pid import Pid
 
-VERNR = "2.1.1"
-VER = f"Landrumower RPI Pico {VERNR}" # Do not reset pid if requested speed = 0 and current speed != 0
+VERNR = "2.1.2"
+VER = f"Landrumower RPI Pico {VERNR}" # Fix in rain sensor initialization, changing info messages and debug to non blocking, changes in motor pid reset in case of direction change
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -91,6 +89,7 @@ class PicoMowerDriver:
     lcdPrio2: str = ""
     lcdPrioMessage: bool = False
     lcdPrioMessageTime: int = 0
+    nextLcdTime: int = 0
 
     # motor variables
     leftSpeedSet: int = 0
@@ -105,17 +104,17 @@ class PicoMowerDriver:
     # battery variables
     chgVoltage: float = 0.0
     chargerConnected: bool = False 
-    chgCurrentLP: float = 0.0
+    chgCurrentLp: float = 0.0
     batVoltage: float = 0.0
-    batVoltageLP: float = 0.0
+    batVoltageLp: float = 24.0
     batteryTemp: float = 0.0
     ovCheck: bool = False
     switchBatteryDebounceCtr: int = 0
     nextBatTime: int = 0
 
     # sensors
-    rain: int = 0
-    rainLP: int = 0
+    rain: int = 65535
+    rainLp: int = 65535
     raining: int = 0
     liftLeft: int = 0
     liftRight: int = 0
@@ -126,6 +125,7 @@ class PicoMowerDriver:
     stopButton: int = 0
 
     # common
+    debugMessages = []
     requestShutdown: bool = False
     nextInfoTime: int = time.ticks_ms()
     nextKeepPowerOnTime: int = time.ticks_ms()
@@ -151,8 +151,7 @@ class PicoMowerDriver:
         self.pinMotorRightBrake.freq(FREQ_MOW)
 
         if HIL:
-            if DEBUG:
-                print("HIL mode activated")
+            print("HIL mode activated")
         else:
             try:
                 self.inabat = INA226(self.i2c0, INABATADRESS)
@@ -220,10 +219,10 @@ class PicoMowerDriver:
                     rawData = self.uart0.readline()
                     self.cmd = rawData.decode("ascii")
                     if DEBUG:
-                        print(f"Received command: {self.cmd}")
+                        self.debugMessages.append(f"Received command: {self.cmd}")
                     self.processCmd(True)
                     if DEBUG:
-                        print(f"Response: {self.cmdResponse}")
+                        self.debugMessages.append(f"Response: {self.cmdResponse}")
                     self.uart0.write(self.cmdResponse)
                     self.cmd = ""
         except Exception as e:
@@ -241,7 +240,7 @@ class PicoMowerDriver:
             if idx < 1:
                 if checkCrc:
                     if DEBUG:
-                        print("CRC ERROR")
+                        self.debugMessages.append("CRC ERROR")
                     return
             else:
                 cmd_splited = self.cmd.split(",")
@@ -251,8 +250,7 @@ class PicoMowerDriver:
                 expectedCRC = hex(sum(cmd_no_crc.encode('ascii')) % 256)
                 if expectedCRC != crc and checkCrc:
                     if DEBUG:
-                        print("CRC ERROR")
-                        print(f'{crc}, {expectedCRC}')
+                        self.debugMessages.append(f"CRC ERROR. Received: {crc}, expected: {expectedCRC}")
                     return
                 else:
                     self.cmd = cmd_no_crc
@@ -280,7 +278,7 @@ class PicoMowerDriver:
     def cmdAnswer(self, s: str) -> None:
         try:
             if DEBUG:
-                print(f"Answer: {s}")
+                self.debugMessages.append(f"Answer: {s}")
             crc = hex(sum(s.encode('ascii')) % 256)
             self.cmdResponse = s+","+crc+"\r\n"
         except Exception as e:
@@ -334,13 +332,11 @@ class PicoMowerDriver:
             else:
                 return
             if DEBUG:
-                print(f"left={left}")
-                print(f"right={right}")
-                print(f"mow={mow}")
+                self.debugMessages.append(f"left={left}, right={right}, mow={mow}")
             self.motorLeft.setSpeed(left)
             self.motorRight.setSpeed(right)
             self.motorMow.setSpeed(mow)
-            self.motorTimeout = time.ticks_add(time.ticks_ms(), 30000)
+            self.motorTimeout = time.ticks_add(time.ticks_ms(), 3000)
             s = f"M,{self.motorRight.odomTicks},{self.motorLeft.odomTicks},{self.motorMow.odomTicks},{self.chgVoltage},{int(self.bumper)},{int(self.lift)},{int(self.stopButton)}"
             self.cmdAnswer(s)
         except Exception as e:
@@ -356,8 +352,7 @@ class PicoMowerDriver:
         self.motorControlLocked = True
         self.lcd1 = "motor drivers"
         self.lcd2 = "recovery"
-        if DEBUG:
-            print("Motor faults request. Reseting drivers")
+        print("Motor faults request. Reseting drivers")
         self.motorLeft.driverReset()
         self.motorRight.driverReset()
         s = f"R"
@@ -367,37 +362,36 @@ class PicoMowerDriver:
     def cmdSummary(self) -> None:
         try:
             self.lcd1 = f""
-            self.lcd2  = f"{round(self.batVoltageLP, 1)}V/{round(self.chgCurrentLP, 1)}A"
+            self.lcd2  = f"{round(self.batVoltageLp, 1)}V/{round(self.chgCurrentLp, 1)}A"
             cmd_splited = self.cmd.split(",")
             for cmdDataIdx in range(len(cmd_splited)):
                 if cmdDataIdx == 1:
                     self.lcd1 = self.sunrayStateToText(int(cmd_splited[1]))
                     if DEBUG:
-                        print(f"Sunray state: {self.lcd1}")
+                        self.debugMessages.append(f"Sunray state: {self.lcd1}")
                 elif cmdDataIdx == 2:
                     if DEBUG:
-                        print(f"Received new kP parameter: {cmd_splited[2]}")
+                        self.debugMessages.append(f"Received new kP parameter: {cmd_splited[2]}")
                     self.motorLeft.motorControl.setParameters(kP = float(cmd_splited[2]))
                     self.motorRight.motorControl.setParameters(kP = float(cmd_splited[2]))
                 elif cmdDataIdx == 3:
                     if DEBUG:
-                        print(f"Received new kI parameter: {cmd_splited[3]}")
+                        self.debugMessages.append(f"Received new kI parameter: {cmd_splited[3]}")
                     self.motorLeft.motorControl.setParameters(kI = float(cmd_splited[3]))
                     self.motorRight.motorControl.setParameters(kI = float(cmd_splited[3]))
                 elif cmdDataIdx == 4:
                     if DEBUG:
-                        print(f"Received new kD parameter: {cmd_splited[4]}")
+                        self.debugMessages.append(f"Received new kD parameter: {cmd_splited[4]}")
                     self.motorLeft.motorControl.setParameters(kD = float(cmd_splited[4]))
                     self.motorRight.motorControl.setParameters(kD = float(cmd_splited[4]))
-            s = f"S,{self.batVoltageLP},{self.chgVoltage},{self.chgCurrentLP},{int(self.lift)},{int(self.bumper)},{int(self.raining)},{int(self.motorLeft.overload or self.motorRight.overload or self.motorMow.overload)},{self.motorMow.electricalCurrent},{self.motorLeft.electricalCurrent},{self.motorRight.electricalCurrent},{self.batteryTemp}"
+            s = f"S,{self.batVoltageLp},{self.chgVoltage},{self.chgCurrentLp},{int(self.lift)},{int(self.bumper)},{int(self.raining)},{int(self.motorLeft.overload or self.motorRight.overload or self.motorMow.overload)},{self.motorMow.electricalCurrent},{self.motorLeft.electricalCurrent},{self.motorRight.electricalCurrent},{self.batteryTemp}"
             self.cmdAnswer(s)
         except Exception as e:
             print(f"Command summary invalid. Exception: {e}")
 
     # perform shutdown
     def cmdShutdown(self) -> None:
-        if DEBUG:
-            print("Shutdown request")
+        print("Shutdown request")
         self.motorLeft.stop()
         self.motorRight.stop()
         self.motorMow.stop()
@@ -411,8 +405,7 @@ class PicoMowerDriver:
     
     # perform hang test (watchdog should trigger)
     def cmdTriggerWatchdog(self) -> None:
-        if DEBUG:
-            print("Watchdog trigger request")
+        print("Watchdog trigger request")
         s = f"Y"
         self.cmdAnswer(s)
         while True: # never returns
@@ -449,41 +442,40 @@ class PicoMowerDriver:
     def readSensorHighFrequency(self) -> None:
         try:
             if not HIL:
-                self.chgCurrentLP = self.inabat.current
-                self.chgCurrentLP = self.chgCurrentLP * CURRENTFACTOR
-                if self.chgCurrentLP <= 0.1:
-                    self.chgCurrentLP = abs(self.chgCurrentLP)
+                self.chgCurrentLp = self.inabat.current
+                self.chgCurrentLp = self.chgCurrentLp * CURRENTFACTOR
+                if self.chgCurrentLp <= 0.1:
+                    self.chgCurrentLp = abs(self.chgCurrentLp)
                     self.chargerConnected = True
-                    self.chgVoltage = self.batVoltageLP
+                    self.chgVoltage = self.batVoltageLp
                 else:
                     self.chargerConnected = False
                     self.chgVoltage = 0
             else:
-                self.chgCurrentLP = 1.0
+                self.chgCurrentLp = 1.0
                 self.chargerConnected = False
                 self.chgVoltage = 0
         except Exception as e:
             print(f"Error while reading INA(Battery) data: {e}")
             self.chargerConnected = False
-            self.chgCurrentLP = 0
+            self.chgCurrentLp = 0
             self.chgVoltage = 0
     
     def keepPowerOn(self) -> None:
-        if (self.batVoltageLP < CRITICALVOLTAGE and self.batVoltage < CRITICALVOLTAGE) or self.requestShutdown:
+        if (self.batVoltageLp < CRITICALVOLTAGE and self.batVoltage < CRITICALVOLTAGE) or self.requestShutdown:
             self.switchBatteryDebounceCtr +=1
+            if self.switchBatteryDebounceCtr % 5 == 0:
+                self.lcdPrioMessage = True
+                self.lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 30000)
+                self.lcdPrio1 = "shutdown" + "." * int(self.switchBatteryDebounceCtr/5)
+                if self.requestShutdown:
+                    print("Main unit requests shutdown. Delay time started")
+                else:
+                    print("Battery voltage critical level reached")
+                    print("SHUTTING DOWN")  
         else:
             self.switchBatteryDebounceCtr = 0
-
-        if self.switchBatteryDebounceCtr == 10 or self.switchBatteryDebounceCtr == 20 or self.switchBatteryDebounceCtr == 30:
-            self.lcdPrioMessage = True
-            self.lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 30000)
-            self.lcdPrio1 = "shutdown" + "." * (int(self.switchBatteryDebounceCtr/10))
-            if self.requestShutdown:
-                print("Main unit requests shutdown. Delay time started")
-            else:
-                print("Battery voltage critical level reached")
-                print("SHUTTING DOWN")
-                self.pinBatterySwitch.value(0)
+        
         if self.switchBatteryDebounceCtr > 40:
             print(f"SHUTTING DOWN")
             self.pinBatterySwitch.value(0)
@@ -491,23 +483,27 @@ class PicoMowerDriver:
     def printInfo(self) -> None:
         print((f"tim={time.ticks_add(time.ticks_ms(), 0)}, "
               f"lps={self.lps}, "
-              f"bat={self.batVoltageLP}V, "
-              f"chg={self.chgVoltage}V/{self.chgCurrentLP}A, "
+              f"msgBuf={len(self.debugMessages)}, "
+              f"bat={self.batVoltageLp}V, "
+              f"chg={self.chgVoltage}V/{self.chgCurrentLp}A, "
               f"mF={self.motorMowFault}, "
               f"imp={self.motorLeft.odomTicks},{self.motorRight.odomTicks},{self.motorMow.odomTicks}, "
               f"curr={self.motorLeft.electricalCurrent}, {self.motorRight.electricalCurrent}, {self.motorMow.electricalCurrent}, "
               f"lift={self.liftLeft},{self.liftRight}, "
               f"bump={self.bumperX},{self.bumperY}, "
-              f"rain={self.rainLP, self.raining}, "
+              f"rain={self.rainLp, self.raining}, "
               f"stop={self.stopButton}, "
               f"rightSp={self.motorRight.currentSpeedSetPoint}, "
               f"right={self.motorRight.currentSpeedLp}, "
-              f"speedLeft={self.motorLeft.currentSpeedLp}, "
+              f"rightPwm={self.motorRight.currentPwm}, "
+              f"leftSp={self.motorLeft.currentSpeedSetPoint}, "
               f"left={self.motorLeft.currentSpeedLp}, "
+              f"leftPwm={self.motorLeft.currentPwm}, "
               f"speedMow={self.motorMow.currentRpmSetPoint}, "
               f"mow={self.motorMow.currentRpmLp}"
+              f"mowPwm={self.motorMow.currentPwm}, "
               ))
-
+    
     def readSensors(self) -> None:
         # battery voltage
         w = 0.99
@@ -519,13 +515,13 @@ class PicoMowerDriver:
         except Exception as e:
             print(f"Error while reading INA(Battery) data: {e}")
             self.batVoltage = 0
-        self.batVoltageLP = w * self.batVoltageLP + (1 - w) * self.batVoltage
+        self.batVoltageLp = w * self.batVoltageLp + (1 - w) * self.batVoltage
 
         # rain 
         w = 0.99
         self.rain = self.pinRain.read_u16()
-        self.ainLP = w * self.rainLP + (1 - w) * self.rain
-        self.raining = int((((self.rainLP * 100) / 65535) < 50))
+        self.rainLp = int(w * self.rainLp + (1 - w) * self.rain)
+        self.raining = int((((self.rainLp * 100) / 65535) < 50))
 
         # lift
         self.liftLeft = self.pinLift1.value()
@@ -589,12 +585,6 @@ class PicoMowerDriver:
             if time.ticks_diff(self.nextKeepPowerOnTime, time.ticks_ms()) <= 0:
                 self.nextKeepPowerOnTime = time.ticks_add(time.ticks_ms(), 1000)
                 self.keepPowerOn()
-            
-            # next info time (DEBUGTIME)
-            if time.ticks_diff(self.nextInfoTime, time.ticks_ms()) <= 0:
-                self.nextInfoTime = time.ticks_add(time.ticks_ms(), INFOTIME)    
-                if INFO:
-                    self.printInfo()
                 self.lps = 0
             
             # next measure time for sensors
@@ -632,14 +622,29 @@ class PicoMowerDriver:
             self.lcd.move_to(0, 1)
             self.lcd.putstr(lcdMessage2)
 
+    def printDebug(self) -> None:
+        message = None
+        if self.debugMessages != []:
+            message = self.debugMessages[0]
+            self.debugMessages.pop(0)
+        if DEBUG and message is not None:
+            print(message)    
+
     def secondLoop(self) -> None:
         while True:
-            self.printLcd();
-            sleep_ms(1000)
+            if LCD and time.ticks_diff(self.nextLcdTime, time.ticks_ms()) < 0:
+                self.nextLcdTime = time.ticks_add(time.ticks_ms(), 1000)
+                self.printLcd()
+            self.printDebug()
+            # next info time (INFOTIME)
+            if time.ticks_diff(self.nextInfoTime, time.ticks_ms()) <= 0:
+                self.nextInfoTime = time.ticks_add(time.ticks_ms(), INFOTIME)    
+                if INFO:
+                    self.printInfo()
+            
 
 if __name__ == '__main__':
     landrumowerDriver = PicoMowerDriver()
-    if LCD:
-        _thread.start_new_thread(landrumowerDriver.secondLoop, ())
+    _thread.start_new_thread(landrumowerDriver.secondLoop, ())
     landrumowerDriver.mainLoop()
     
