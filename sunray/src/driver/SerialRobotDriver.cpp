@@ -216,6 +216,7 @@ void SerialRobotDriver::requestMotorPwm(int leftPwm, int rightPwm, int mowPwm, f
   //  req += "1";
   //else
   //  req += "0";  
+  CONSOLE.println(req);
   sendRequest(req);
   cmdMotorCounter++;
 }
