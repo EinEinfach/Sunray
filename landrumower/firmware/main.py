@@ -4,7 +4,7 @@
 # activate debug
 DEBUG = False
 INFO = True
-INFOTIME = 1000
+INFOTIME = 5000
 
 # activate hil
 HIL = False
@@ -139,7 +139,7 @@ class PicoMowerDriver:
 
         print("Landrumower Driver")
         print(f"Version: {VER}")
-        self.uart0 = UART(0, baudrate=115200, tx=Pin(0), rx=Pin(1), bits=8, parity=None, stop=1, timeout=10)
+        self.uart0 = UART(0, baudrate=19200, tx=Pin(0), rx=Pin(1), bits=8, parity=None, stop=1, timeout=10)
         self.i2c0 = I2C(0, sda=Pin(16), scl=Pin(17), freq=400000)  # I2C0 has 3.3V logic
         self.i2c1 = I2C(1, sda=Pin(14), scl=Pin(15), freq=400000)  # I2C1 has 5.0V logic
 
