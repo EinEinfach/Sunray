@@ -51,8 +51,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.pid import Pid
 
-VERNR = "2.1.2"
-VER = f"Landrumower RPI Pico {VERNR}" # Fix in rain sensor initialization, changing info messages and debug to non blocking, changes in motor pid reset in case of direction change
+VERNR = "2.1.3"
+VER = f"Landrumower RPI Pico {VERNR}" # Add some messages to debug serial console
 
 class PicoMowerDriver:
     cmd: str = ""
