@@ -1,10 +1,10 @@
-# Landrumower MCU (Raspberry Pi Pico) fimrware (based on RM18.ino Alfred MCU fw)
 
 # Configuration:
 # activate debug
+WATCHDOG = False # set to true in productive enviroment
 DEBUG = False
 INFO = False
-INFOTIME = 5000
+INFOTIME = 10000
 
 # activate hil
 HIL = False
@@ -125,21 +125,23 @@ class PicoMowerDriver:
     stopButton: int = 0
 
     # common
+    stopLoop: bool = False
     debugMessages = []
     requestShutdown: bool = False
     nextInfoTime: int = time.ticks_ms()
     nextKeepPowerOnTime: int = time.ticks_ms()
     lps: int = 0
+    msgs: int = 0
 
 
     def __init__(self) -> None:
-        self.wdt = WDT(timeout=6000)
+        if WATCHDOG: self.wdt = WDT(timeout=6000)
 
         self.pinBatterySwitch.value(1)
 
         print("Landrumower Driver")
         print(f"Version: {VER}")
-        self.uart0 = UART(0, baudrate=115200, tx=Pin(0), rx=Pin(1), bits=8, parity=None, stop=1, timeout=5)
+        self.uart0 = UART(0, baudrate=19200, tx=Pin(0), rx=Pin(1), bits=8, parity=None, stop=1, timeout=2)
         self.i2c0 = I2C(0, sda=Pin(16), scl=Pin(17), freq=400000)  # I2C0 has 3.3V logic
         self.i2c1 = I2C(1, sda=Pin(14), scl=Pin(15), freq=400000)  # I2C1 has 5.0V logic
 
@@ -198,39 +200,48 @@ class PicoMowerDriver:
                               brakePinHighActive=False, 
                               directionPinHighPositive=True, 
                               overloadThreshold=OVERLOADCURRENT_MOW)
-        
-        self.wdt.feed()
+        if WATCHDOG: self.wdt.feed()
     
     # uart input
     def processConsole(self) -> None:
         try:
-            if HIL:
-                #read input from usb in case of HIL (hardware in the loop)
-                if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                    rawData = sys.stdin.readline().strip()
+            #read input from usb, user cmd operation (hardware in the loop, no crc check)
+            if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                rawData = sys.stdin.readline().strip()
+                # stop infinity loop for flashing
+                if rawData == "stop":
+                    self.stopLoop = True
+                    return
+                if HIL:
                     self.cmd = rawData
                     print(f"Received command via USB: {self.cmd}")
                     self.processCmd(False)
                     print(self.cmdResponse)  # Send response back to USB console
                     self.cmd = ""
-            else:
-                #read input from uart (normal operation)
-                if self.uart0.any() > 0:
-                    processConsoleTime = time.ticks_ms()
-                    rawData = self.uart0.readline()
-                    self.cmd = rawData.decode("ascii")
-                    readEncodeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime)
-                    if DEBUG:
-                        self.debugMessages.append(f"Received command: {self.cmd}")
-                    self.processCmd(True)
-                    processCmdTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime
-                    if DEBUG:
-                        self.debugMessages.append(f"Response: {self.cmdResponse}")
-                    self.uart0.write(self.cmdResponse)
-                    writeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime - processCmdTime
-                    self.cmd = ""
-                    if time.ticks_diff(time.ticks_ms(), processConsoleTime) > 15:
-                        print(f"Warning process console time greater 15ms. ReadEncodeTime: {readEncodeTime}, processCmdTime: {processCmdTime}, writeTime: {writeTime}")
+
+            #read input from uart (normal operation)
+            if self.uart0.any() > 0:
+                # self.msgs += 1
+                # processConsoleTime = time.ticks_ms()
+                rawData = self.uart0.readline()
+                self.cmd = rawData.decode("ascii")
+                # readEncodeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime)
+                # if readEncodeTime > 11:
+                #     print(f"readEncodeTime: {readEncodeTime}, encodedCmd: {self.cmd}")
+                if DEBUG:
+                    self.debugMessages.append(f"Received command: {self.cmd}")
+                self.processCmd(True)
+                # processCmdTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime
+                # if processCmdTime > 30:
+                #     print(f"processCmdTime: {processCmdTime}, requestedCmd: {self.cmd}")
+                if DEBUG:
+                    self.debugMessages.append(f"Response: {self.cmdResponse}")
+                self.uart0.write(self.cmdResponse)
+                # writeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime - processCmdTime
+                self.cmd = ""
+                # if time.ticks_diff(time.ticks_ms(), processConsoleTime) > 15:
+                #     print(f"Warning process console time greater 15ms. ReadEncodeTime: {readEncodeTime}, processCmdTime: {processCmdTime}, writeTime: {writeTime}, msgs: {self.msgs}")
+                #     self.msgs = 0
         except Exception as e:
             print(f"Received data are corrupt. Data: {self.cmd}. Exception: {e}")
             self.cmd = ""
@@ -319,7 +330,7 @@ class PicoMowerDriver:
                 self.motorLeft.run()
                 self.motorRight.run()
                 time.sleep(0.003)
-                self.wdt.feed()
+                if WATCHDOG: self.wdt.feed()
             loopCall += 1
 
     # request motor
@@ -506,8 +517,8 @@ class PicoMowerDriver:
               f"left={self.motorLeft.currentSpeedLp}, "
               f"leftPwm={self.motorLeft.currentPwm}, "
               f"speedMow={self.motorMow.currentRpmSetPoint}, "
-              f"mow={self.motorMow.currentRpmLp}"
-              f"mowPwm={self.motorMow.currentPwm}, "
+              f"mow={self.motorMow.currentRpmLp}, "
+              f"mowPwm={self.motorMow.currentPwm}"
               ))
     
     def readSensors(self) -> None:
@@ -568,6 +579,10 @@ class PicoMowerDriver:
         
     def mainLoop(self) -> None:
         while True:
+            # check if infinity loop should stop (neccassary for OTA flashing)
+            if self.stopLoop:
+                print("Exit main loop")
+                return
 
             self.motorLeft.run()
             self.motorRight.run()
@@ -605,7 +620,7 @@ class PicoMowerDriver:
             
             self.processConsole()
             self.lps += 1
-            self.wdt.feed()
+            if WATCHDOG: self.wdt.feed()
 
     def printLcd(self) -> None:
         if self.lcdPrioMessage:
@@ -638,6 +653,10 @@ class PicoMowerDriver:
 
     def secondLoop(self) -> None:
         while True:
+            # check if infinity loop should stop (neccasary for OTA flashing)
+            if self.stopLoop:
+                print("Exit second loop")
+                return
             if LCD and time.ticks_diff(self.nextLcdTime, time.ticks_ms()) < 0:
                 self.nextLcdTime = time.ticks_add(time.ticks_ms(), 1000)
                 self.printLcd()
@@ -647,7 +666,6 @@ class PicoMowerDriver:
                 self.nextInfoTime = time.ticks_add(time.ticks_ms(), INFOTIME)    
                 if INFO:
                     self.printInfo()
-            secondLoopTime = time.ticks_diff(time.ticks_ms(), secondLoopStart)
 
 if __name__ == '__main__':
     landrumowerDriver = PicoMowerDriver()
