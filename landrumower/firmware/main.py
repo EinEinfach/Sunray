@@ -1,9 +1,9 @@
-
 # Configuration:
 # activate debug
+
 WATCHDOG = False # set to true in productive enviroment
 DEBUG = False
-INFO = False
+INFO = True
 INFOTIME = 10000
 
 # activate hil
@@ -51,7 +51,7 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.pid import Pid
 
-VERNR = "2.1.3"
+VERNR = "2.1.4"
 VER = f"Landrumower RPI Pico {VERNR}" # Add some messages to debug serial console
 
 class PicoMowerDriver:
@@ -133,7 +133,6 @@ class PicoMowerDriver:
     lps: int = 0
     msgs: int = 0
 
-
     def __init__(self) -> None:
         if WATCHDOG: self.wdt = WDT(timeout=6000)
 
@@ -208,16 +207,19 @@ class PicoMowerDriver:
             #read input from usb, user cmd operation (hardware in the loop, no crc check)
             if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
                 rawData = sys.stdin.readline().strip()
+                if rawData == "":
+                    return
                 # stop infinity loop for flashing
                 if rawData == "stop":
+                    print("Stop code loops")
                     self.stopLoop = True
                     return
-                if HIL:
-                    self.cmd = rawData
-                    print(f"Received command via USB: {self.cmd}")
-                    self.processCmd(False)
-                    print(self.cmdResponse)  # Send response back to USB console
-                    self.cmd = ""
+                
+                self.cmd = rawData
+                print(f"Received command via USB: {self.cmd}")
+                self.processCmd(False)
+                print(self.cmdResponse)  # Send response back to USB console
+                self.cmd = ""
 
             #read input from uart (normal operation)
             if self.uart0.any() > 0:
@@ -578,12 +580,7 @@ class PicoMowerDriver:
             print(f"Error while reading INA(Motors) data: {e}")
         
     def mainLoop(self) -> None:
-        while True:
-            # check if infinity loop should stop (neccassary for OTA flashing)
-            if self.stopLoop:
-                print("Exit main loop")
-                return
-
+        while not self.stopLoop:
             self.motorLeft.run()
             self.motorRight.run()
             self.motorMow.run()
@@ -625,23 +622,23 @@ class PicoMowerDriver:
     def printLcd(self) -> None:
         if self.lcdPrioMessage:
             self.lcdPrioMessage = False
-            self.lcd.clear()
             self.lcd.move_to(0, 0)
-            self.lcd.putstr(self.lcdPrio1)
+            self.lcd.putstr(self.prepareLcdMessage(self.lcdPrio1))
             self.lcd.move_to(0, 1)
-            self.lcd.putstr(self.lcdPrio2)
+            self.lcd.putstr(self.prepareLcdMessage(self.lcdPrio2))
             return
         if time.ticks_diff(self.lcdPrioMessageTime, time.ticks_ms()) <= 0:
-            lcdMessage1 = self.lcd1
-            lcdMessage2 = self.lcd2
-            if len(self.lcd1) < LCD_NUM_COLUMNS:
-                lcdMessage1 = ('{: <{}}'.format(self.lcd1, LCD_NUM_COLUMNS))
-            if len(self.lcd2) < LCD_NUM_COLUMNS:
-                lcdMessage2 = ('{: <{}}'.format(self.lcd2, LCD_NUM_COLUMNS))
             self.lcd.move_to(0, 0)
-            self.lcd.putstr(lcdMessage1)
+            self.lcd.putstr(self.prepareLcdMessage(self.lcd1))
             self.lcd.move_to(0, 1)
-            self.lcd.putstr(lcdMessage2)
+            self.lcd.putstr(self.prepareLcdMessage(self.lcd2))
+    
+    def prepareLcdMessage(self, message: str) -> str:
+        if len(message) < LCD_NUM_COLUMNS:
+            modifiedMessage = ('{: <{}}'.format(message, LCD_NUM_COLUMNS))
+        else:
+            modifiedMessage = message[:LCD_NUM_COLUMNS]
+        return modifiedMessage
 
     def printDebug(self) -> None:
         message = None
@@ -652,11 +649,7 @@ class PicoMowerDriver:
             print(message)    
 
     def secondLoop(self) -> None:
-        while True:
-            # check if infinity loop should stop (neccasary for OTA flashing)
-            if self.stopLoop:
-                print("Exit second loop")
-                return
+        while not self.stopLoop:
             if LCD and time.ticks_diff(self.nextLcdTime, time.ticks_ms()) < 0:
                 self.nextLcdTime = time.ticks_add(time.ticks_ms(), 1000)
                 self.printLcd()
@@ -671,4 +664,7 @@ if __name__ == '__main__':
     landrumowerDriver = PicoMowerDriver()
     _thread.start_new_thread(landrumowerDriver.secondLoop, ())
     landrumowerDriver.mainLoop()
+    print("Code stopped")
+    landrumowerDriver.led.value(0)
+    sys.exit()
     
