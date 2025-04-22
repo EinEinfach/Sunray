@@ -154,6 +154,7 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 
 // motor speed control (PID coefficients) - these values are tuned for Ardumower motors
 // general information about PID controllers: https://wiki.ardumower.de/index.php?title=PID_control
+#define MOTOR_PID_LP     0.0    // encoder low-pass filter (use for low encoder tickcount - use zero to disable)
 #define MOTOR_PID_KP     0.0   // 0.25 if using sunray pid, if using pico pid set it to 0.0
 #define MOTOR_PID_KI     0.0   // 0.01 if using sunray pid, if using pico pid set it to 0.0
 #define MOTOR_PID_KD     0.0   // 0.0 if using sunray pid, if using pico pid set it to 0.0
