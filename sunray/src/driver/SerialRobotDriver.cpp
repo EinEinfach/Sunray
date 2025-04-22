@@ -516,7 +516,7 @@ void SerialMotorDriver::begin(){
 void SerialMotorDriver::run(){
 }
 
-void SerialMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm, float rightSpeed, float leftSpeed ){  
+void SerialMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm, int rightSpeed, int leftSpeed ){  
   //serialRobot.requestMotorPwm(leftPwm, rightPwm, mowPwm);
   serialRobot.requestedRightSpeed = rightSpeed;
   serialRobot.requestedLeftSpeed = leftSpeed;

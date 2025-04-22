@@ -51,8 +51,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.pid import Pid
 
-VERNR = "2.1.5"
-VER = f"Landrumower RPI Pico {VERNR}" # Remove stop command to exit from infinity loop
+VERNR = "2.1.6"
+VER = f"Landrumower RPI Pico {VERNR}" # fix lps calculation, leftspeed and rightspeed divided by 100 beacuse sunray send now int values
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -339,8 +339,8 @@ class PicoMowerDriver:
                 left = int(cmd_splited[2])
                 mow = int(cmd_splited[3])
             elif len(cmd_splited) == 6:
-                right = float(cmd_splited[4])
-                left = float(cmd_splited[5])
+                right = int(cmd_splited[4]) / 100
+                left = int(cmd_splited[5]) / 100
                 mow = int(cmd_splited[3])
             else:
                 return
@@ -495,7 +495,7 @@ class PicoMowerDriver:
     
     def printInfo(self) -> None:
         print((f"tim={time.ticks_add(time.ticks_ms(), 0)}, "
-              f"lps={self.lps}, "
+              f"lps={self.lps}/{int(INFOTIME/1000)}s, "
               f"msgBuf={len(self.debugMessages)}, "
               f"bat={self.batVoltageLp}V, "
               f"chg={self.chgVoltage}V/{self.chgCurrentLp}A, "
@@ -516,6 +516,7 @@ class PicoMowerDriver:
               f"mow={self.motorMow.currentRpmLp}, "
               f"mowPwm={self.motorMow.currentPwm}"
               ))
+        self.lps = 0
     
     def readSensors(self) -> None:
         # battery voltage
@@ -597,7 +598,6 @@ class PicoMowerDriver:
             if time.ticks_diff(self.nextKeepPowerOnTime, time.ticks_ms()) <= 0:
                 self.nextKeepPowerOnTime = time.ticks_add(time.ticks_ms(), 1000)
                 self.keepPowerOn()
-                self.lps = 0
             
             # next measure time for sensors
             if time.ticks_diff(self.nextBatTime, time.ticks_ms()) <= 0:

@@ -67,7 +67,7 @@ class AmMotorDriver: public MotorDriver {
     AmMotorDriver();
     void begin() override;
     void run() override;
-    void setMotorPwm(int leftPwm, int rightPwm, int mowPwm, float rightSpeed, float leftSpeed) override;
+    void setMotorPwm(int leftPwm, int rightPwm, int mowPwm, int rightSpeed, int leftSpeed) override;
     void getMotorFaults(bool &leftFault, bool &rightFault, bool &mowFault) override;
     void resetMotorFaults()  override;
     void getMotorCurrent(float &leftCurrent, float &rightCurrent, float &mowCurrent) override;

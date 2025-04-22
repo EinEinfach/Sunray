@@ -33,7 +33,7 @@ class MotorDriver {
     virtual void run() = 0;
     
     // set pwm (0-255), positive: forward, negative: backwards
-    virtual void setMotorPwm(int leftPwm, int rightPwm, int mowPwm, float rightSpeed, float leftSpeed) = 0;
+    virtual void setMotorPwm(int leftPwm, int rightPwm, int mowPwm, int rightSpeed, int leftSpeed) = 0;
     // get motor faults
     virtual void getMotorFaults(bool &leftFault, bool &rightFault, bool &mowFault) = 0;
     // reset motor faults

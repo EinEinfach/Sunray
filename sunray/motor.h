@@ -70,8 +70,8 @@ class Motor {
     void setMowMaxPwm( int val );
     void stopImmediately(bool includeMowerMotor);
   protected: 
-    float lspeed;
-    float rspeed;
+    int lspeed;
+    int rspeed;
     float motorLeftRpmSet; // set speed
     float motorRightRpmSet;   
     float motorLeftRpmCurr;
@@ -98,7 +98,7 @@ class Motor {
     int motorRightTicksZero;    
     bool setLinearAngularSpeedTimeoutActive;
     unsigned long setLinearAngularSpeedTimeout;    
-    void speedPWM ( int pwmLeft, int pwmRight, int pwmMow, float rightSpeed, float leftSpeed );
+    void speedPWM ( int pwmLeft, int pwmRight, int pwmMow, int rightSpeed, int leftSpeed );
     void control();    
     bool checkFault();
     void checkOverload();

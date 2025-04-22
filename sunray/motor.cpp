@@ -122,7 +122,7 @@ void Motor::setMowMaxPwm( int val ){
   pwmMaxMow = val;
 }
 
-void Motor::speedPWM ( int pwmLeft, int pwmRight, int pwmMow, float speedRight, float speedLeft )
+void Motor::speedPWM ( int pwmLeft, int pwmRight, int pwmMow, int speedRight, int speedLeft )
 {
   //Correct Motor Direction
   if (motorLeftSwapDir) pwmLeft *= -1;
@@ -154,8 +154,8 @@ void Motor::setLinearAngularSpeed(float linear, float angular, bool useLinearRam
      linearSpeedSet = linear;
    }
    angularSpeedSet = angular;   
-   rspeed = round((linearSpeedSet + angularSpeedSet * (wheelBaseCm / 100.0 / 2)) * 100) / 100.0;
-   lspeed = round((linearSpeedSet - angularSpeedSet * (wheelBaseCm / 100.0 / 2)) * 100) / 100.0;         
+   rspeed = round((linearSpeedSet + angularSpeedSet * (wheelBaseCm / 100.0 / 2)) * 100);
+   lspeed = round((linearSpeedSet - angularSpeedSet * (wheelBaseCm / 100.0 / 2)) * 100);         
    // RPM = V / (2*PI*r) * 60
    motorRightRpmSet =  rspeed / (PI*(((float)wheelDiameter)/1000.0)) * 60.0;   
    motorLeftRpmSet = lspeed / (PI*(((float)wheelDiameter)/1000.0)) * 60.0;   
