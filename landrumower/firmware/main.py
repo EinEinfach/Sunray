@@ -3,7 +3,7 @@
 
 WATCHDOG = False # set to true in productive enviroment
 DEBUG = False
-INFO = True
+INFO = False
 INFOTIME = 10000
 
 # activate hil
@@ -51,8 +51,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.pid import Pid
 
-VERNR = "2.1.4"
-VER = f"Landrumower RPI Pico {VERNR}" # Add some messages to debug serial console
+VERNR = "2.1.5"
+VER = f"Landrumower RPI Pico {VERNR}" # Remove stop command to exit from infinity loop
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -140,7 +140,7 @@ class PicoMowerDriver:
 
         print("Landrumower Driver")
         print(f"Version: {VER}")
-        self.uart0 = UART(0, baudrate=19200, tx=Pin(0), rx=Pin(1), bits=8, parity=None, stop=1, timeout=2)
+        self.uart0 = UART(0, baudrate=115200, tx=Pin(0), rx=Pin(1), bits=8, parity=None, stop=1, timeout=2)
         self.i2c0 = I2C(0, sda=Pin(16), scl=Pin(17), freq=400000)  # I2C0 has 3.3V logic
         self.i2c1 = I2C(1, sda=Pin(14), scl=Pin(15), freq=400000)  # I2C1 has 5.0V logic
 
@@ -204,46 +204,40 @@ class PicoMowerDriver:
     # uart input
     def processConsole(self) -> None:
         try:
-            #read input from usb, user cmd operation (hardware in the loop, no crc check)
-            if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                rawData = sys.stdin.readline().strip()
-                if rawData == "":
-                    return
-                # stop infinity loop for flashing
-                if rawData == "stop":
-                    print("Stop code loops")
-                    self.stopLoop = True
-                    return
-                
-                self.cmd = rawData
-                print(f"Received command via USB: {self.cmd}")
-                self.processCmd(False)
-                print(self.cmdResponse)  # Send response back to USB console
-                self.cmd = ""
+            if HIL:
+                #read input from usb, user cmd operation (hardware in the loop, no crc check)
+                if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                    rawData = sys.stdin.readline().strip()
+                    self.cmd = rawData
+                    print(f"Received command via USB: {self.cmd}")
+                    self.processCmd(False)
+                    print(self.cmdResponse)  # Send response back to USB console
+                    self.cmd = ""
 
-            #read input from uart (normal operation)
-            if self.uart0.any() > 0:
-                # self.msgs += 1
-                # processConsoleTime = time.ticks_ms()
-                rawData = self.uart0.readline()
-                self.cmd = rawData.decode("ascii")
-                # readEncodeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime)
-                # if readEncodeTime > 11:
-                #     print(f"readEncodeTime: {readEncodeTime}, encodedCmd: {self.cmd}")
-                if DEBUG:
-                    self.debugMessages.append(f"Received command: {self.cmd}")
-                self.processCmd(True)
-                # processCmdTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime
-                # if processCmdTime > 30:
-                #     print(f"processCmdTime: {processCmdTime}, requestedCmd: {self.cmd}")
-                if DEBUG:
-                    self.debugMessages.append(f"Response: {self.cmdResponse}")
-                self.uart0.write(self.cmdResponse)
-                # writeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime - processCmdTime
-                self.cmd = ""
-                # if time.ticks_diff(time.ticks_ms(), processConsoleTime) > 15:
-                #     print(f"Warning process console time greater 15ms. ReadEncodeTime: {readEncodeTime}, processCmdTime: {processCmdTime}, writeTime: {writeTime}, msgs: {self.msgs}")
-                #     self.msgs = 0
+            else: 
+                #read input from uart (normal operation)
+                if self.uart0.any() > 0:
+                    # self.msgs += 1
+                    # processConsoleTime = time.ticks_ms()
+                    rawData = self.uart0.readline()
+                    self.cmd = rawData.decode("ascii")
+                    # readEncodeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime)
+                    # if readEncodeTime > 11:
+                    #     print(f"readEncodeTime: {readEncodeTime}, encodedCmd: {self.cmd}")
+                    if DEBUG:
+                        self.debugMessages.append(f"Received command: {self.cmd}")
+                    self.processCmd(True)
+                    # processCmdTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime
+                    # if processCmdTime > 30:
+                    #     print(f"processCmdTime: {processCmdTime}, requestedCmd: {self.cmd}")
+                    if DEBUG:
+                        self.debugMessages.append(f"Response: {self.cmdResponse}")
+                    self.uart0.write(self.cmdResponse)
+                    # writeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime - processCmdTime
+                    self.cmd = ""
+                    # if time.ticks_diff(time.ticks_ms(), processConsoleTime) > 15:
+                    #     print(f"Warning process console time greater 15ms. ReadEncodeTime: {readEncodeTime}, processCmdTime: {processCmdTime}, writeTime: {writeTime}, msgs: {self.msgs}")
+                    #     self.msgs = 0
         except Exception as e:
             print(f"Received data are corrupt. Data: {self.cmd}. Exception: {e}")
             self.cmd = ""
