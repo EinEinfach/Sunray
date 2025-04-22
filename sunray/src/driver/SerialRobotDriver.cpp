@@ -200,7 +200,7 @@ void SerialRobotDriver::requestSummary(){
 
 
 // request MCU motor PWM
-void SerialRobotDriver::requestMotorPwm(int leftPwm, int rightPwm, int mowPwm, float rightSpeed, float leftSpeed){
+void SerialRobotDriver::requestMotorPwm(int leftPwm, int rightPwm, int mowPwm, int rightSpeed, int leftSpeed){
   String req;
   req += "AT+M,";
   req += rightPwm;      

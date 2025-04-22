@@ -21,8 +21,8 @@ class SerialRobotDriver: public RobotDriver {
     String mcuFirmwareName;
     String mcuFirmwareVersion;
     String messageToMcu;
-    float requestedRightSpeed;
-    float requestedLeftSpeed;
+    int requestedRightSpeed;
+    int requestedLeftSpeed;
     int requestLeftPwm;
     int requestRightPwm;
     int requestMowPwm;        
@@ -52,7 +52,7 @@ class SerialRobotDriver: public RobotDriver {
     bool getRobotID(String &id) override;
     bool getMcuFirmwareVersion(String &name, String &ver) override;
     float getCpuTemperature() override;
-    void requestMotorPwm(int leftPwm, int rightPwm, int mowPwm, float rightSpeed, float leftSpeed);
+    void requestMotorPwm(int leftPwm, int rightPwm, int mowPwm, int rightSpeed, int leftSpeed);
     void requestResetMotorFaults();
     void requestMcuShutdown();
     void requestSummary();
