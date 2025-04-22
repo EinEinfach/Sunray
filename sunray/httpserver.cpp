@@ -29,6 +29,8 @@ unsigned long nextWifiClientCheckTime = 0;
 ERingBuffer buf(8);
 int reqCount = 0;                // number of requests received
 unsigned long stopClientTime = 0;
+unsigned long wifiLastClientAvailableWait = 0;
+int wifiLastClientAvailable = 0;
 
 
 
@@ -107,6 +109,10 @@ void processWifiAppServer()
 {
   if (!wifiFound) return;
   if (!ENABLE_SERVER) return;
+  if (wifiLastClientAvailableWait != 0){
+    if (millis() < wifiLastClientAvailableWait) return;
+    wifiLastClientAvailableWait = 0;
+  }
   // listen for incoming clients    
   if (client){
     if (stopClientTime != 0) {
@@ -130,6 +136,11 @@ void processWifiAppServer()
     #endif
     battery.resetIdle();
     buf.init();                               // initialize the circular buffer
+    if (client.available() != wifiLastClientAvailable) {
+      wifiLastClientAvailable = client.available();
+      wifiLastClientAvailableWait = millis() + 50;
+      return;
+    }
     unsigned long timeout = millis() + 50;
     while ( (client.connected()) && (millis() < timeout) ) {              // loop while the client's connected
       if (client.available()) {               // if there's bytes to read from the client,        
