@@ -12,10 +12,12 @@
 #include "motor.h"
 #include "config.h"
 #include "src/driver/AmRobotDriver.h"
+#include "src/driver/CanRobotDriver.h"
 #include "src/driver/SerialRobotDriver.h"
 #include "src/driver/SimRobotDriver.h"
 #include "src/driver/MpuDriver.h"
 #include "src/driver/BnoDriver.h"
+#include "src/driver/IcmDriver.h"
 #include "battery.h"
 #include "ble.h"
 #include "pinman.h"
@@ -26,6 +28,7 @@
 #include "map.h"   
 #include "src/ublox/ublox.h"
 #include "src/skytraq/skytraq.h"
+#include "src/lidar/lidar.h"
 #ifdef __linux__
   #include <BridgeClient.h>
   #include "src/ntrip/ntripclient.h"
@@ -36,7 +39,7 @@
 #include "timetable.h"
 
 
-#define VER "Sunray,1.0.314"
+#define VER "Sunray,1.0.324"
 
 // operation types
 enum OperationType {
@@ -114,6 +117,15 @@ extern int motorErrorCounter;
   extern SerialRainSensorDriver rainDriver;
   extern SerialLiftSensorDriver liftDriver;  
   extern SerialBuzzerDriver buzzerDriver;
+#elif DRV_CAN_ROBOT
+  extern CanRobotDriver robotDriver;
+  extern CanMotorDriver motorDriver;
+  extern CanBatteryDriver batteryDriver;
+  extern CanBumperDriver bumperDriver;
+  extern CanStopButtonDriver stopButton;
+  extern CanRainSensorDriver rainDriver;
+  extern CanLiftSensorDriver liftDriver;  
+  extern CanBuzzerDriver buzzerDriver;
 #elif DRV_SIM_ROBOT
   extern SimRobotDriver robotDriver;
   extern SimMotorDriver motorDriver;
@@ -136,8 +148,12 @@ extern int motorErrorCounter;
 
 #ifdef DRV_SIM_ROBOT
   extern SimImuDriver imuDriver;
+#elif defined(GPS_LIDAR)
+  extern LidarImuDriver imuDriver;
 #elif defined(BNO055)
   extern BnoDriver imuDriver;  
+#elif defined(ICM20948)
+  extern IcmDriver imuDriver;  
 #else
   extern MpuDriver imuDriver;
 #endif
@@ -147,6 +163,7 @@ extern Battery battery;
 extern BLEConfig bleConfig;
 extern Bumper bumper;
 extern Buzzer buzzer;
+extern LidarBumperDriver lidarBumper;
 extern Sonar sonar;
 extern VL53L0X tof;
 extern PinManager pinMan;
@@ -154,6 +171,8 @@ extern Map maps;
 extern TimeTable timetable;
 #ifdef DRV_SIM_ROBOT
   extern SimGpsDriver gps;
+#elif GPS_LIDAR
+  extern LidarGpsDriver gps;
 #elif GPS_SKYTRAQ
   extern SKYTRAQ gps;
 #else
