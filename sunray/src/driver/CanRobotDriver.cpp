@@ -222,7 +222,7 @@ void CanRobotDriver::requestSummary(){
 
 
 // request MCU motor PWM
-void CanRobotDriver::requestMotorDrivePwm(int leftPwm, int rightPwm, bool requestReleaseBrakesWhenZero){
+void CanRobotDriver::requestMotorDrivePwm(int leftPwm, int rightPwm, bool requestReleaseBrakesWhenZero, int rightSpeed, int leftSpeed){
   canDataType_t data;
 
   if ((leftPwm == 0) && (requestReleaseBrakesWhenZero)){
@@ -531,7 +531,7 @@ void CanRobotDriver::run(){
       can.read(frame);
     }*/
     //CONSOLE.println(requestLeftPwm);
-    requestMotorDrivePwm(requestLeftPwm, requestRightPwm, requestReleaseBrakesWhenZero);        
+    requestMotorDrivePwm(requestLeftPwm, requestRightPwm, requestReleaseBrakesWhenZero, 0, 0);        
   }
   if (millis() > nextSummaryTime){
     nextSummaryTime = millis() + 100; // 10 hz
@@ -636,7 +636,7 @@ void CanMotorDriver::setMowHeight(int mowHeightMillimeter){
   canRobot.requestMowHeightMillimeter = mowHeightMillimeter;
 }
 
-void CanMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm, bool releaseBrakesWhenZero){  
+void CanMotorDriver::setMotorPwm(int leftPwm, int rightPwm, int mowPwm, bool releaseBrakesWhenZero, int rightSpeed, int leftSpeed){  
   //CONSOLE.print("CanMotorDriver::setMotorPwm ");  
   //CONSOLE.print(leftPwm);
   //CONSOLE.print(",");  

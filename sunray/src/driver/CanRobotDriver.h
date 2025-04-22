@@ -204,7 +204,7 @@ class CanRobotDriver: public RobotDriver {
     bool getRobotID(String &id) override;
     bool getMcuFirmwareVersion(String &name, String &ver) override;
     float getCpuTemperature() override;
-    void requestMotorDrivePwm(int leftPwm, int rightPwm, bool requestReleaseBrakesWhenZero);
+    void requestMotorDrivePwm(int leftPwm, int rightPwm, bool requestReleaseBrakesWhenZero, int rightSpeed, int leftSpeed);
     void requestMotorMowPwm(int mowPwm);
     void requestMotorMowCurrent();
     void requestMowHeight(int mowHeightMillimeter);
@@ -257,7 +257,7 @@ class CanMotorDriver: public MotorDriver {
     void begin() override;
     void run() override;
     void setMowHeight(int mowHeightMillimeter) override;
-    void setMotorPwm(int leftPwm, int rightPwm, int mowPwm, bool releaseBrakesWhenZero) override;
+    void setMotorPwm(int leftPwm, int rightPwm, int mowPwm, bool releaseBrakesWhenZero, int rightSpeed, int leftSpeed) override;
     void getMotorFaults(bool &leftFault, bool &rightFault, bool &mowFault) override;
     void resetMotorFaults()  override;
     void getMotorCurrent(float &leftCurrent, float &rightCurrent, float &mowCurrent) override;
