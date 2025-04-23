@@ -6,8 +6,6 @@ from lib.pid import Pid
 FREQ = 20000
 WHEELDIAMETER = 0.22
 TICKSPERREVOLUTION = 340
-# activate pid control on pico
-PICOMOTORCONTROL = True
 
 # acceleration pid
 KP = 2.0
@@ -45,6 +43,7 @@ class Motor:
 
     def __init__(self, 
                  type: str,
+                 pidControl: bool,
                  pinDir: Pin, 
                  pinBrake: PWM, 
                  pinPwm: PWM, 
@@ -53,6 +52,7 @@ class Motor:
                  directionPinHighPositive: bool, 
                  overloadThreshold: float) -> None:
         self.type = type
+        self.pidControl = pidControl
         self.pinDir = pinDir
         self.pinBrake = pinBrake
         self.pinPwm = pinPwm
@@ -80,8 +80,8 @@ class Motor:
             else:
                 self.positiveDirection = True
             # decision picontrol or not
-            if PICOMOTORCONTROL and self.type == 'gear':
-                self.currentRpmSetPoint = abs(60 * setPoint/(math.pi * WHEELDIAMETER))
+            if self.pidControl and self.type == 'gear':
+                self.currentRpmSetPoint = abs(60 * setPoint/(100 * math.pi * WHEELDIAMETER))
             else:
                 self.currentRpmSetPoint = abs(setPoint)
         else:
@@ -131,7 +131,7 @@ class Motor:
             return
 
         # motor should run
-        if PICOMOTORCONTROL and self.type == 'gear':
+        if self.pidControl and self.type == 'gear':
             self.mustStopTime = 0
             self.brakeTimeStart = 0
             output = self.motorControl.control(self.currentRpmSetPoint, self.currentRpmLp)  

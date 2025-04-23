@@ -1,38 +1,66 @@
 #!/bin/bash
 
-# Aktiviere die Python-Umgebung
-# Pfad zur virtuellen Umgebung
+# === Konfiguration ===
 VENV="$HOME/pico/.venv"
+PORT="/dev/ttyACM1"
+MAIN_FILE="main.py"
+LIB_DIR="lib"
+
+# === Virtualenv prüfen und aktivieren ===
 if [[ ! -f "$VENV/bin/activate" ]]; then
   echo "❌ Python-Umgebung nicht gefunden unter $VENV"
   exit 1
 fi
 source "$VENV/bin/activate"
 
-# Aktuelle Datei (Argument 1) holen
-FILE="$1"
-
-if [[ -z "$FILE" ]]; then
-  echo "❌ Keine Datei angegeben!"
+# === Datei prüfen ===
+if [[ ! -f "$MAIN_FILE" ]]; then
+  echo "❌ Datei $MAIN_FILE nicht gefunden!"
+  deactivate
   exit 1
 fi
 
-if [[ "$FILE" != *.py ]]; then
-  echo "❌ Nur Python-Dateien erlaubt!"
+# === "stop"-Befehl an Pico senden (wenn erwartet) ===
+echo "🛑 Sende 'stop' an $PORT..."
+echo "stop" > "$PORT"
+sleep 1
+
+# === main.py hochladen ===
+echo "📤 Kopiere $MAIN_FILE..."
+mpremote connect $PORT cp "$MAIN_FILE" :main.py || {
+  echo "❌ Fehler beim Hochladen von $MAIN_FILE"
+  deactivate
   exit 1
+}
+
+# === lib/ rekursiv hochladen ===
+if [[ -d "$LIB_DIR" ]]; then
+  echo "📂 Lade Inhalt von $LIB_DIR/ hoch..."
+
+  # Alle Verzeichnisse erstellen
+  find "$LIB_DIR" -type d | while read dir; do
+    remote_dir=":${dir}"
+    echo "📁 Erstelle Ordner $remote_dir auf dem Pico"
+    mpremote connect $PORT mkdir "$remote_dir"
+  done
+
+  # Alle Dateien kopieren
+  find "$LIB_DIR" -type f | while read file; do
+    echo "📄 Kopiere Datei $file"
+    mpremote connect $PORT cp "$file" ":$file"
+  done
+else
+  echo "⚠️  Kein $LIB_DIR/-Ordner gefunden – wird übersprungen"
 fi
 
-# Datei auf den Pico kopieren
-echo "📤 Kopiere $FILE nach Pico..."
-mpremote connect /dev/ttyACM1 cp "$FILE" :main.py
-
-# Softreset
+# === Softreset ===
 echo "🔁 Softreset..."
-mpremote connect /dev/ttyACM1 reset
+mpremote connect $PORT reset
 
-# Verbindung schliessen
-echo "🔌 Verbindung wird sauber geschlossen..."
+# === Verbindung "beenden" ===
+echo "🔌 Verbindung beenden..."
 mpremote connect $PORT run 'pass'
 
-# Deaktivere die Python-Umgebung
+# === Deaktivieren der virtuellen Umgebung ===
 deactivate
+echo "✅ Deployment abgeschlossen."

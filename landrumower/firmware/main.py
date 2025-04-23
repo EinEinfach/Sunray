@@ -9,6 +9,9 @@ INFOTIME = 10000
 # activate hil
 HIL = False
 
+# activate pid control on pico
+PICOMOTORCONTROL = False
+
 # overload current for motors
 OVERLOADCURRENT_GEAR = 10
 OVERLOADCURRENT_MOW = 10
@@ -51,8 +54,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.pid import Pid
 
-VERNR = "2.1.6"
-VER = f"Landrumower RPI Pico {VERNR}" # fix lps calculation, leftspeed and rightspeed divided by 100 beacuse sunray send now int values
+VERNR = "2.1.7"
+VER = f"Landrumower RPI Pico {VERNR}" # fix pwm mode
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -176,6 +179,7 @@ class PicoMowerDriver:
                 print(f"ERROR: LCD not found: {e}")   
 
         self.motorLeft = Motor('gear',
+                               PICOMOTORCONTROL,
                                self.pinMotorLeftDir, 
                                self.pinMotorLeftBrake, 
                                self.pinMotorLeftPwm, 
@@ -184,6 +188,7 @@ class PicoMowerDriver:
                                directionPinHighPositive=True, 
                                overloadThreshold=OVERLOADCURRENT_GEAR) 
         self.motorRight = Motor('gear',
+                                PICOMOTORCONTROL,
                                 self.pinMotorRightDir, 
                                 self.pinMotorRightBrake, 
                                 self.pinMotorRightPwm, 
@@ -192,6 +197,7 @@ class PicoMowerDriver:
                                 directionPinHighPositive=False, 
                                 overloadThreshold=OVERLOADCURRENT_GEAR)
         self.motorMow = Motor('mow', 
+                              PICOMOTORCONTROL,
                               self.pinMotorMowDir, 
                               self.pinMotorMowBrake, 
                               self.pinMotorMowPwm, 
@@ -334,21 +340,33 @@ class PicoMowerDriver:
     def cmdMotor(self) -> None:
         try:
             cmd_splited = self.cmd.split(",")
+            rightPwm = 0
+            leftPwm = 0
+            mowPwm = 0
+            rightSpeed = 0.0
+            leftSpeed = 0.0
             if len(cmd_splited) == 4:
-                right = int(cmd_splited[1])
-                left = int(cmd_splited[2])
-                mow = int(cmd_splited[3])
+                rightPwm = int(cmd_splited[1])
+                leftPwm = int(cmd_splited[2])
+                mowPwm = int(cmd_splited[3])
             elif len(cmd_splited) == 6:
-                right = int(cmd_splited[4]) / 100
-                left = int(cmd_splited[5]) / 100
-                mow = int(cmd_splited[3])
+                rightPwm = int(cmd_splited[1])
+                leftPwm = int(cmd_splited[2])
+                mowPwm = int(cmd_splited[3])
+                rightSpeed = int(cmd_splited[4])
+                leftSpeed = int(cmd_splited[5])
             else:
                 return
             if DEBUG:
-                self.debugMessages.append(f"left={left}, right={right}, mow={mow}")
-            self.motorLeft.setSpeed(left)
-            self.motorRight.setSpeed(right)
-            self.motorMow.setSpeed(mow)
+                self.debugMessages.append(f"leftPwm={leftPwm}, rightPwm={rightPwm}, mow={mowPwm}, leftSpeed={leftSpeed}cm/s, rightSpeed={rightSpeed}cm/s")
+            if PICOMOTORCONTROL:
+                self.motorLeft.setSpeed(leftSpeed)
+                self.motorRight.setSpeed(rightSpeed)
+                self.motorMow.setSpeed(mowPwm)
+            else:
+                self.motorLeft.setSpeed(leftPwm)
+                self.motorRight.setSpeed(rightPwm)
+                self.motorMow.setSpeed(mowPwm)
             self.motorTimeout = time.ticks_add(time.ticks_ms(), 3000)
             s = f"M,{self.motorRight.odomTicks},{self.motorLeft.odomTicks},{self.motorMow.odomTicks},{self.chgVoltage},{int(self.bumper)},{int(self.lift)},{int(self.stopButton)}"
             self.cmdAnswer(s)
