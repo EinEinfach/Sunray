@@ -7,11 +7,6 @@ FREQ = 20000
 WHEELDIAMETER = 0.22
 TICKSPERREVOLUTION = 340
 
-# acceleration pid
-KP = 2.0
-KI = 0.0
-KD = 0.0
-
 class Motor:
     impMinTime = time.ticks_ms()
     nextSpeedMeasureTime = time.ticks_ms()
@@ -22,6 +17,7 @@ class Motor:
     odomTicks = 0
     lastMeasuredTicks = 0
     currentSpeedSetPoint = 0
+    filterFactor = 0.8
     currentSpeed = 0
     currentSpeedLp = 0
     currentRpm = 0
@@ -44,6 +40,9 @@ class Motor:
     def __init__(self, 
                  type: str,
                  pidControl: bool,
+                 kP: float,
+                 kI: float,
+                 kD: float,
                  pinDir: Pin, 
                  pinBrake: PWM, 
                  pinPwm: PWM, 
@@ -53,6 +52,9 @@ class Motor:
                  overloadThreshold: float) -> None:
         self.type = type
         self.pidControl = pidControl
+        self.kP = kP
+        self.kI = kI
+        self.kD = kD
         self.pinDir = pinDir
         self.pinBrake = pinBrake
         self.pinPwm = pinPwm
@@ -63,7 +65,7 @@ class Motor:
         self.brakePinHighActive = brakePinHighActive
         self.directionPinHighPositive = directionPinHighPositive
         self.overLoadThreshold = overloadThreshold
-        self.motorControl = Pid(KP, KI, KD, 0.01)
+        self.motorControl = Pid(self.kP, self.kI, self.kD, 0.01)
     
     def setSpeed(self, setPoint: float) -> None:
         if not self.overload:
@@ -107,14 +109,14 @@ class Motor:
         currentTicks = self.odomTicks - self.lastMeasuredTicks
         self.lastMeasuredTicks = self.odomTicks
         self.currentRpm = 60000 * (float(currentTicks)/TICKSPERREVOLUTION) / (time.ticks_diff(time.ticks_ms(), self.lastMeasuredTime))
-        self.currentRpmLp = (0.3*self.currentRpm + 0.7*self.currentRpmLp)
+        self.currentRpmLp = (self.filterFactor*self.currentRpm + (1-self.filterFactor)*self.currentRpmLp)
         self.currentSpeed = 1000 * (math.pi * WHEELDIAMETER * float(currentTicks)/TICKSPERREVOLUTION) / (time.ticks_diff(time.ticks_ms(), self.lastMeasuredTime))
-        self.currentSpeedLp = 0.3*self.currentSpeed + 0.7*self.currentSpeedLp
+        self.currentSpeedLp = self.filterFactor*self.currentSpeed + (1-self.filterFactor)*self.currentSpeedLp
         if self.currentRpmLp < 0.01:
             self.currentRpmLp = 0.0
             self.currentSpeedLp = 0.0
         self.lastMeasuredTime = time.ticks_ms()
-        self.nextSpeedMeasureTime = time.ticks_add(time.ticks_ms(), 50)
+        self.nextSpeedMeasureTime = time.ticks_add(time.ticks_ms(), 10)
 
     def control(self) -> None:
         # stop control if driver in reset state
@@ -211,7 +213,9 @@ class Motor:
         self.pinBrake.duty_u16(0)
     
     def odometryIsr(self, pin) -> None:
-        if self.pinImp.value() == 0: return
+        # if self.pinImp.value() == 0: 
+        #     print("Allready zero")
+        #     return
         if time.ticks_diff(self.impMinTime, time.ticks_ms()) > 0: return
-        self.impMinTime = time.ticks_add(time.ticks_ms(), 3)
+        self.impMinTime = time.ticks_add(time.ticks_ms(), 1)
         self.odomTicks += 1

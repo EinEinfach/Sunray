@@ -1,42 +1,28 @@
 # Configuration:
-# activate debug
-
-WATCHDOG = False # set to true in productive enviroment
-DEBUG = False
-INFO = False
-INFOTIME = 10000
-
-# activate hil
-HIL = False
-
-# activate pid control on pico
-PICOMOTORCONTROL = False
-
-# overload current for motors
-OVERLOADCURRENT_GEAR = 10
-OVERLOADCURRENT_MOW = 10
-
-# critical voltage pico will cut off power supply
-CRITICALVOLTAGE = 17
-
-# bl drver specific settings
-FREQ = 20000 #JYQD2021 best results
-FREQ_MOW = 10000 #No data for mow bl driver available
-
-# INA
-INABATADRESS = 64 # (A0 and A1 on GND)
-INAMOWADRESS = 65 # (A0 on VCC)
-INALEFTADRESS = 68
-INARIGHTADRESS = 69
-
-# LCD
-LCD = True #If you don't have a LCD set this to False
-LCDADRESS = 39 
-LCD_NUM_ROWS = 2 
-LCD_NUM_COLUMNS = 16
-
-# Current facttor
-CURRENTFACTOR = 10 #If you changed your ina shunt from 100mOhm to 10mOhm set this value to 10, without any modifications set it to 1
+WATCHDOG = False    # set to true in productive enviroment
+DEBUG = False       # activate debug information over usb
+INFO = False        # activate info over usb
+INFOTIME = 10000    # information time period
+HIL = False          # use pico for testing as hardware in the loop (ignore missing i2c devices)
+PICOMOTORCONTROL = True     # activate pid control on pico
+KP = 4.0            # Kp factor for pico pid controller
+KI = 0.02           # KI factor for pico pid controller
+KD = 0.005            # KD factor for pico pid controller
+OVERLOADCURRENT_GEAR = 10   # overload current for gear motors
+OVERLOADCURRENT_MOW = 10    # overload current for mow motor
+CRITICALVOLTAGE = 17        # critical voltage pico will cut off power supply
+FREQ = 20000            # pwm frequency for motor drivers (JYQD2021 best results with 20kHz)
+FREQ_MOW = 10000        # pwm frequency for mow motor driver (No data for mow driver available)
+CURRENTFACTOR = 10      # If you changed your ina shunt from 100mOhm to 10mOhm set this value to 10, without any modifications set it to 1
+INABATADRESS = 64       # I2C adress for INA226 battery (A0 and A1 on GND)
+INAMOWADRESS = 65       # I2C adress for INA226 mow motor (A0 on VCC)
+INALEFTADRESS = 68      # I2C adress for left gear motor
+INARIGHTADRESS = 69     # I2C adress for right gear motor
+LCD = True              # If you don't have a LCD set this to False
+LCDADRESS = 39          # I2C adress for LCD
+LCD_NUM_ROWS = 2        # number of LCD rows
+LCD_NUM_COLUMNS = 16    # number of LCD columns
+FREQ_BUZZER = 1000      # pwm frequency buzzer
 
 # packeage imports
 from machine import Pin
@@ -52,10 +38,10 @@ import time, sys, select, _thread
 from lib.ina226 import INA226
 from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
-from lib.pid import Pid
+from lib.buzzer import Buzzer
 
-VERNR = "2.1.7"
-VER = f"Landrumower RPI Pico {VERNR}" # fix pwm mode
+VERNR = "2.2.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Accept command via usb without HIL mode, move PID parameters to main.py configuration, lot of changes in motor.py, first support of buzzer
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -84,6 +70,8 @@ class PicoMowerDriver:
     pinMotorMowPwm = PWM(Pin(11))
     pinMotorMowDir = Pin(12, Pin.OUT)
     pinMotorMowBrake = PWM(Pin(13))
+
+    pinBuzzer = PWM(Pin(26))
 
     # lcd messages
     lcd1: str = "" 
@@ -128,6 +116,7 @@ class PicoMowerDriver:
     stopButton: int = 0
 
     # common
+    mainProgramState: str = "boot"
     stopLoop: bool = False
     debugMessages = []
     requestShutdown: bool = False
@@ -180,6 +169,9 @@ class PicoMowerDriver:
 
         self.motorLeft = Motor('gear',
                                PICOMOTORCONTROL,
+                               KP,
+                               KI,
+                               KD,
                                self.pinMotorLeftDir, 
                                self.pinMotorLeftBrake, 
                                self.pinMotorLeftPwm, 
@@ -189,6 +181,9 @@ class PicoMowerDriver:
                                overloadThreshold=OVERLOADCURRENT_GEAR) 
         self.motorRight = Motor('gear',
                                 PICOMOTORCONTROL,
+                                KP,
+                                KI,
+                                KD,
                                 self.pinMotorRightDir, 
                                 self.pinMotorRightBrake, 
                                 self.pinMotorRightPwm, 
@@ -198,6 +193,9 @@ class PicoMowerDriver:
                                 overloadThreshold=OVERLOADCURRENT_GEAR)
         self.motorMow = Motor('mow', 
                               PICOMOTORCONTROL,
+                              KP,
+                              KI,
+                              KD,
                               self.pinMotorMowDir, 
                               self.pinMotorMowBrake, 
                               self.pinMotorMowPwm, 
@@ -205,45 +203,34 @@ class PicoMowerDriver:
                               brakePinHighActive=False, 
                               directionPinHighPositive=True, 
                               overloadThreshold=OVERLOADCURRENT_MOW)
+        
+        self.buzzer = Buzzer(FREQ_BUZZER, self.pinBuzzer)
+
         if WATCHDOG: self.wdt.feed()
     
     # uart input
     def processConsole(self) -> None:
         try:
-            if HIL:
-                #read input from usb, user cmd operation (hardware in the loop, no crc check)
-                if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                    rawData = sys.stdin.readline().strip()
+            #read input from usb, user cmd operation (hardware in the loop, no crc check)
+            if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                rawData = sys.stdin.readline().strip()
+                if rawData != "":
                     self.cmd = rawData
                     print(f"Received command via USB: {self.cmd}")
                     self.processCmd(False)
                     print(self.cmdResponse)  # Send response back to USB console
                     self.cmd = ""
-
-            else: 
-                #read input from uart (normal operation)
-                if self.uart0.any() > 0:
-                    # self.msgs += 1
-                    # processConsoleTime = time.ticks_ms()
-                    rawData = self.uart0.readline()
-                    self.cmd = rawData.decode("ascii")
-                    # readEncodeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime)
-                    # if readEncodeTime > 11:
-                    #     print(f"readEncodeTime: {readEncodeTime}, encodedCmd: {self.cmd}")
-                    if DEBUG:
-                        self.debugMessages.append(f"Received command: {self.cmd}")
-                    self.processCmd(True)
-                    # processCmdTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime
-                    # if processCmdTime > 30:
-                    #     print(f"processCmdTime: {processCmdTime}, requestedCmd: {self.cmd}")
-                    if DEBUG:
-                        self.debugMessages.append(f"Response: {self.cmdResponse}")
-                    self.uart0.write(self.cmdResponse)
-                    # writeTime = time.ticks_diff(time.ticks_ms(), processConsoleTime) - readEncodeTime - processCmdTime
-                    self.cmd = ""
-                    # if time.ticks_diff(time.ticks_ms(), processConsoleTime) > 15:
-                    #     print(f"Warning process console time greater 15ms. ReadEncodeTime: {readEncodeTime}, processCmdTime: {processCmdTime}, writeTime: {writeTime}, msgs: {self.msgs}")
-                    #     self.msgs = 0
+            #read input from uart (normal operation)
+            if self.uart0.any() > 0:
+                rawData = self.uart0.readline()
+                self.cmd = rawData.decode("ascii")
+                if DEBUG:
+                    self.debugMessages.append(f"Received command: {self.cmd}")
+                self.processCmd(True)
+                if DEBUG:
+                    self.debugMessages.append(f"Response: {self.cmdResponse}")
+                self.uart0.write(self.cmdResponse)
+                self.cmd = ""
         except Exception as e:
             print(f"Received data are corrupt. Data: {self.cmd}. Exception: {e}")
             self.cmd = ""
@@ -311,24 +298,24 @@ class PicoMowerDriver:
     # AT+E
     def cmdMotorControlTest(self) -> None:
         loopCall = 1
-        while loopCall <= 5:
+        while loopCall <= 7:
             if loopCall%2 == 0:
                 testSpeed = 0
             else:
-                testSpeed = 0.1 * loopCall
-                testSpeed = min(testSpeed, 0.4)
+                testSpeed = 10 * loopCall
+                testSpeed = min(testSpeed, 60)
             
             self.motorLeft.setSpeed(testSpeed)
             self.motorRight.setSpeed(testSpeed)
             if testSpeed == 0:
                 testTime = time.ticks_add(time.ticks_ms(), 5000)
             else:
-                testTime = time.ticks_add(time.ticks_ms(), 10000)
+                testTime = time.ticks_add(time.ticks_ms(), 20000)
             nextInfoTime = time.ticks_ms()
             while time.ticks_diff(testTime, time.ticks_ms()) >= 0:
                 if time.ticks_diff(nextInfoTime, time.ticks_ms()) <= 0:
                     nextInfoTime = time.ticks_add(time.ticks_ms(), 100)
-                    print(f"left pwm: {self.motorLeft.currentTrqPwm} left sp: {testSpeed} left: {self.motorLeft.currentSpeedLp} right pwm: {self.motorRight.currentTrqPwm} right sp: {testSpeed} right: {self.motorRight.currentSpeedLp}")
+                    print(f"left pwm: {int(100*self.motorLeft.currentTrqPwm/65535)} left sp: {testSpeed/100} left: {self.motorLeft.currentSpeedLp} right pwm: {int(100*self.motorRight.currentTrqPwm/65535)} right sp: {testSpeed/100} right: {self.motorRight.currentSpeedLp}")
                 self.motorLeft.run()
                 self.motorRight.run()
                 time.sleep(0.003)
@@ -426,6 +413,8 @@ class PicoMowerDriver:
         self.motorLeft.stop()
         self.motorRight.stop()
         self.motorMow.stop()
+        self.buzzer.programState = "shutdown"
+        self.buzzer.playShutdown(60000)
         self.requestShutdown = True
         self.lcdPrioMessage = True
         self.lcdPrioMessageTime = time.ticks_add(time.ticks_ms(), 30000)
@@ -594,6 +583,7 @@ class PicoMowerDriver:
         
     def mainLoop(self) -> None:
         while not self.stopLoop:
+            self.buzzer.run(self.mainProgramState)
             self.motorLeft.run()
             self.motorRight.run()
             self.motorMow.run()
