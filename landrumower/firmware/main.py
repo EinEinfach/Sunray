@@ -40,8 +40,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.buzzer import Buzzer
 
-VERNR = "2.4.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Reinit i2c 
+VERNR = "2.5.0"
+VER = f"Landrumower RPI Pico {VERNR}" # move sensor measure to main loop
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -636,21 +636,36 @@ class PicoMowerDriver:
                 self.keepPowerOn()
             time3 = time.ticks_diff(time.ticks_ms(), time3)
             
-            # next measure time for motor current
+            # sensor measure time (10Hz)
             time4 = time.ticks_ms()
             if time.ticks_diff(self.nextMotorSenseTime, time.ticks_ms()) <= 0:
                 self.nextMotorSenseTime = time.ticks_add(time.ticks_ms(), 100)
                 self.readMotorCurrent()
             time4 = time.ticks_diff(time.ticks_ms(), time4)
-            
-            time5 = time.ticks_ms()
-            self.processConsole()
+
+            # sensor measure time (50Hz)
+            time5 = loopTime = time.ticks_ms()
+            if time.ticks_diff(self.nextMotorControlTime, time.ticks_ms()) <= 0:
+                self.nextMotorControlTime = time.ticks_add(time.ticks_ms(), 20)
+                self.readSensorHighFrequency()
             time5 = time.ticks_diff(time.ticks_ms(), time5)
+
+            # sensor measure time (2Hz)
+            time6 = time.ticks_ms()
+            if time.ticks_diff(self.nextBatTime, time.ticks_ms()) <= 0:
+                self.nextBatTime = time.ticks_add(time.ticks_ms(), 500)
+                self.readSensors()
+            time6 = time.ticks_diff(time.ticks_ms(), time6)
+            
+            time7 = time.ticks_ms()
+            self.processConsole()
+            time7 = time.ticks_diff(time.ticks_ms(), time7)
+            
             self.lps += 1
             loopCnt += 1
             loopTimeDiff = time.ticks_diff(time.ticks_ms(), loopTime)
             if loopTimeDiff > 20 and INFO:
-                print(f"mainLoopTime: {loopTimeDiff}ms motorControlTime:{time1}ms motorTimeoutTime:{time2}ms keepPowerOnTime:{time3}ms motorSenseTime:{time4}ms processConsoleTime:{time5}ms loopRatio: {1/loopCnt}")
+                print(f"mainLoopTime: {loopTimeDiff}ms motorControlTime:{time1}ms motorTimeoutTime:{time2}ms keepPowerOnTime:{time3}ms sensorMeausureTime10Hz:{time4} mssensorMeausureTime50Hz:{time5} mssensorMeausureTime2Hz:{time6}ms processConsoleTime:{time7}ms loopRatio: {1/loopCnt}")
                 loopCnt = 0
             if WATCHDOG: self.wdt.feed()
 
@@ -690,39 +705,31 @@ class PicoMowerDriver:
     def secondLoop(self) -> None:
         loopCnt = 0
         while not self.stopLoop:
-            # sensor measure time (50Hz)
-            time1 = loopTime = time.ticks_ms()
-            if time.ticks_diff(self.nextMotorControlTime, time.ticks_ms()) <= 0:
-                self.nextMotorControlTime = time.ticks_add(time.ticks_ms(), 20)
-                self.readSensorHighFrequency()
-            time1 = time.ticks_diff(time.ticks_ms(), time1)
-            # next measure time for sensors
-            time2 = time.ticks_ms()
-            if time.ticks_diff(self.nextBatTime, time.ticks_ms()) <= 0:
-                self.nextBatTime = time.ticks_add(time.ticks_ms(), 500)
-                self.readSensors()
-            time2 = time.ticks_diff(time.ticks_ms(), time2)
             # buzzer
-            time3 = time.ticks_ms()
+            time1 = loopTime = time.ticks_ms()
             self.buzzer.run(self.mainUnitState)
-            time3 = time.ticks_diff(time.ticks_ms(), time3)
+            time1 = time.ticks_diff(time.ticks_ms(), time1)
+
             # lcd
-            time4 = time.ticks_ms()
+            time2 = time.ticks_ms()
             if LCD and time.ticks_diff(self.nextLcdTime, time.ticks_ms()) < 0:
                 self.nextLcdTime = time.ticks_add(time.ticks_ms(), 1000)
                 self.printLcd()
-            time4 = time.ticks_diff(time.ticks_ms(), time4)
+            time2 = time.ticks_diff(time.ticks_ms(), time2)
+
             # print debug messages
-            time5 = time.ticks_ms()
+            time3 = time.ticks_ms()
             self.printDebug()
-            time5 = time.ticks_diff(time.ticks_ms(), time5)
+            time3 = time.ticks_diff(time.ticks_ms(), time3)
+
             # next info time (INFOTIME)
-            time6 = time.ticks_ms()
+            time4 = time.ticks_ms()
             if time.ticks_diff(self.nextInfoTime, time.ticks_ms()) <= 0:
                 self.nextInfoTime = time.ticks_add(time.ticks_ms(), INFOTIME)    
                 if INFO:
                     self.printInfo()
-            time6 = time.ticks_diff(time.ticks_ms(), time6)
+            time4 = time.ticks_diff(time.ticks_ms(), time4)
+
             loopTimeDiff = time.ticks_diff(time.ticks_ms(), loopTime)
             loopCnt += 1
             if loopTimeDiff > 20 and INFO:
