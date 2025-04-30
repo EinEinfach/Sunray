@@ -40,8 +40,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.buzzer import Buzzer
 
-VERNR = "2.5.0"
-VER = f"Landrumower RPI Pico {VERNR}" # move sensor measure to main loop
+VERNR = "2.5.1"
+VER = f"Landrumower RPI Pico {VERNR}" # bug fix in print second loop
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -733,7 +733,7 @@ class PicoMowerDriver:
             loopTimeDiff = time.ticks_diff(time.ticks_ms(), loopTime)
             loopCnt += 1
             if loopTimeDiff > 20 and INFO:
-                print(f"secondLoopTime: {loopTimeDiff}ms readSensorHighFrequencyTime:{time1}ms readBatTime:{time2}ms buzzerRunTime:{time3}ms lcdTime:{time4}ms printDebugTime:{time5}ms printInfoTime:{time6} loopRatio: {1/loopCnt}")
+                print(f"secondLoopTime: {loopTimeDiff}ms buzzerTime:{time1}ms lcdTime:{time2}ms printDebugTime:{time3}ms printInfoTime:{time4} loopRatio: {1/loopCnt}")
                 loopCnt = 0
             
 
