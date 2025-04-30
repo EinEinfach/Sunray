@@ -1,9 +1,9 @@
 # Configuration:
 WATCHDOG = False    # set to true in productive enviroment
 DEBUG = False       # activate debug information over usb
-INFO = True        # activate info over usb
+INFO = True         # activate info over usb
 INFOTIME = 10000    # information time period
-HIL = True # use pico for testing as hardware in the loop (ignore missing i2c devices)
+HIL = False         # use pico for testing as hardware in the loop (ignore missing i2c devices)
 PICOMOTORCONTROL = True     # activate pid control on pico
 KP = 8.0            # Kp factor for pico pid controller
 KI = 0.1           # KI factor for pico pid controller
