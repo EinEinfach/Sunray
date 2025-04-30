@@ -40,8 +40,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.buzzer import Buzzer
 
-VERNR = "2.3.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Swicht to int arithmetic in most cases, many debug time messages
+VERNR = "2.4.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Reinit i2c 
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -127,6 +127,9 @@ class PicoMowerDriver:
     lps: int = 0
     msgs: int = 0
 
+    # interfaces
+    i2cAvailable: bool = False
+
     def __init__(self) -> None:
         if WATCHDOG: self.wdt = WDT(timeout=6000)
 
@@ -148,17 +151,7 @@ class PicoMowerDriver:
         if HIL:
             print("HIL mode activated")
         else:
-            try:
-                self.inabat = INA226(self.i2c0, INABATADRESS)
-                self.inamow = INA226(self.i2c0, INAMOWADRESS)
-                self.inaleft = INA226(self.i2c0, INALEFTADRESS)
-                self.inaright = INA226(self.i2c0, INARIGHTADRESS)
-                self.inabat.set_calibration()
-                self.inamow.set_calibration()
-                self.inaleft.set_calibration()
-                self.inaright.set_calibration()
-            except Exception as e:
-                print(f"ERROR: INA226 not found: {e}")
+            self.initI2C()
         if LCD:
             try:
                 self.lcd = I2cLcd(self.i2c1, LCDADRESS, LCD_NUM_ROWS, LCD_NUM_COLUMNS)
@@ -212,18 +205,22 @@ class PicoMowerDriver:
 
         if WATCHDOG: self.wdt.feed()
     
+    def initI2C(self) -> None:
+        try:
+            self.inabat = INA226(self.i2c0, INABATADRESS)
+            self.inamow = INA226(self.i2c0, INAMOWADRESS)
+            self.inaleft = INA226(self.i2c0, INALEFTADRESS)
+            self.inaright = INA226(self.i2c0, INARIGHTADRESS)
+            self.inabat.set_calibration()
+            self.inamow.set_calibration()
+            self.inaleft.set_calibration()
+            self.inaright.set_calibration()
+        except Exception as e:
+            print(f"ERROR: INA226 not found: {e}")
+
     # uart input
     def processConsole(self) -> None:
         try:
-            #read input from usb, user cmd operation (hardware in the loop, no crc check)
-            if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                rawData = sys.stdin.readline().strip()
-                if rawData != "":
-                    self.cmd = rawData
-                    print(f"Received command via USB: {self.cmd}")
-                    self.processCmd(False)
-                    print(self.cmdResponse)  # Send response back to USB console
-                    self.cmd = ""
             #read input from uart (normal operation)
             if self.uart0.any() > 0:
                 rawData = self.uart0.readline()
@@ -235,6 +232,15 @@ class PicoMowerDriver:
                     self.debugMessages.append(f"Response: {self.cmdResponse}")
                 self.uart0.write(self.cmdResponse)
                 self.cmd = ""
+            #read input from usb, user cmd operation (hardware in the loop, no crc check)
+            if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+                rawData = sys.stdin.readline().strip()
+                if rawData != "":
+                    self.cmd = rawData
+                    print(f"Received command via USB: {self.cmd}")
+                    self.processCmd(False)
+                    print(self.cmdResponse)  # Send response back to USB console
+                    self.cmd = ""
         except Exception as e:
             print(f"Received data are corrupt. Data: {self.cmd}. Exception: {e}")
             self.cmd = ""
@@ -600,6 +606,7 @@ class PicoMowerDriver:
             self.motorRight.electricalCurrent = 99
             self.motorMow.electricalCurrent = 99
             print(f"Error while reading INA(Motors) data: {e}")
+            self.initI2C()
         
     def mainLoop(self) -> None:
         loopCnt = 0

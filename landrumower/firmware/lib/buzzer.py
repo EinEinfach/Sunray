@@ -1,7 +1,7 @@
 from machine import Pin, PWM
 import time
 
-LOUDNESS = 1000
+LOUDNESS = 65000
 
 class Buzzer:
     mainUnitState: str = ""
