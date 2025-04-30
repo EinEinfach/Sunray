@@ -1,12 +1,12 @@
 # Configuration:
 WATCHDOG = False    # set to true in productive enviroment
 DEBUG = False       # activate debug information over usb
-INFO = False        # activate info over usb
+INFO = True        # activate info over usb
 INFOTIME = 10000    # information time period
-HIL = False          # use pico for testing as hardware in the loop (ignore missing i2c devices)
+HIL = True # use pico for testing as hardware in the loop (ignore missing i2c devices)
 PICOMOTORCONTROL = True     # activate pid control on pico
-KP = 4.0            # Kp factor for pico pid controller
-KI = 0.02           # KI factor for pico pid controller
+KP = 8.0            # Kp factor for pico pid controller
+KI = 0.1           # KI factor for pico pid controller
 KD = 0.005            # KD factor for pico pid controller
 OVERLOADCURRENT_GEAR = 10   # overload current for gear motors
 OVERLOADCURRENT_MOW = 10    # overload current for mow motor
@@ -40,8 +40,8 @@ from lib.pico_i2c_lcd import I2cLcd
 from lib.motor import Motor
 from lib.buzzer import Buzzer
 
-VERNR = "2.2.0"
-VER = f"Landrumower RPI Pico {VERNR}" # Accept command via usb without HIL mode, move PID parameters to main.py configuration, lot of changes in motor.py, first support of buzzer
+VERNR = "2.3.0"
+VER = f"Landrumower RPI Pico {VERNR}" # Swicht to int arithmetic in most cases, many debug time messages
 
 class PicoMowerDriver:
     cmd: str = ""
@@ -76,6 +76,8 @@ class PicoMowerDriver:
     # lcd messages
     lcd1: str = "" 
     lcd2: str = ""
+    lcd1Printed: str = ""
+    lcd2Printed: str = ""
     lcdPrio1: str = ""
     lcdPrio2: str = ""
     lcdPrioMessage: bool = False
@@ -116,7 +118,7 @@ class PicoMowerDriver:
     stopButton: int = 0
 
     # common
-    mainProgramState: str = "boot"
+    mainUnitState: str = "boot"
     stopLoop: bool = False
     debugMessages = []
     requestShutdown: bool = False
@@ -166,43 +168,45 @@ class PicoMowerDriver:
                 self.lcd2 = f"Version: {VERNR}"
             except Exception as e:
                 print(f"ERROR: LCD not found: {e}")   
-
-        self.motorLeft = Motor('gear',
-                               PICOMOTORCONTROL,
-                               KP,
-                               KI,
-                               KD,
-                               self.pinMotorLeftDir, 
-                               self.pinMotorLeftBrake, 
-                               self.pinMotorLeftPwm, 
-                               self.pinMotorLeftImp, 
-                               brakePinHighActive=True, 
-                               directionPinHighPositive=True, 
-                               overloadThreshold=OVERLOADCURRENT_GEAR) 
-        self.motorRight = Motor('gear',
+        try:
+            self.motorLeft = Motor('gear',
                                 PICOMOTORCONTROL,
                                 KP,
                                 KI,
                                 KD,
-                                self.pinMotorRightDir, 
-                                self.pinMotorRightBrake, 
-                                self.pinMotorRightPwm, 
-                                self.pinMotorRightImp, 
+                                self.pinMotorLeftDir, 
+                                self.pinMotorLeftBrake, 
+                                self.pinMotorLeftPwm, 
+                                self.pinMotorLeftImp, 
                                 brakePinHighActive=True, 
-                                directionPinHighPositive=False, 
-                                overloadThreshold=OVERLOADCURRENT_GEAR)
-        self.motorMow = Motor('mow', 
-                              PICOMOTORCONTROL,
-                              KP,
-                              KI,
-                              KD,
-                              self.pinMotorMowDir, 
-                              self.pinMotorMowBrake, 
-                              self.pinMotorMowPwm, 
-                              self.pinMotorMowImp, 
-                              brakePinHighActive=False, 
-                              directionPinHighPositive=True, 
-                              overloadThreshold=OVERLOADCURRENT_MOW)
+                                directionPinHighPositive=True, 
+                                overloadThreshold=OVERLOADCURRENT_GEAR) 
+            self.motorRight = Motor('gear',
+                                    PICOMOTORCONTROL,
+                                    KP,
+                                    KI,
+                                    KD,
+                                    self.pinMotorRightDir, 
+                                    self.pinMotorRightBrake, 
+                                    self.pinMotorRightPwm, 
+                                    self.pinMotorRightImp, 
+                                    brakePinHighActive=True, 
+                                    directionPinHighPositive=False, 
+                                    overloadThreshold=OVERLOADCURRENT_GEAR)
+            self.motorMow = Motor('mow', 
+                                PICOMOTORCONTROL,
+                                KP,
+                                KI,
+                                KD,
+                                self.pinMotorMowDir, 
+                                self.pinMotorMowBrake, 
+                                self.pinMotorMowPwm, 
+                                self.pinMotorMowImp, 
+                                brakePinHighActive=False, 
+                                directionPinHighPositive=True, 
+                                overloadThreshold=OVERLOADCURRENT_MOW)
+        except Exception as e:
+            print(f"Could not initilaze motors: {e}")
         
         self.buzzer = Buzzer(FREQ_BUZZER, self.pinBuzzer)
 
@@ -302,8 +306,8 @@ class PicoMowerDriver:
             if loopCall%2 == 0:
                 testSpeed = 0
             else:
-                testSpeed = 10 * loopCall
-                testSpeed = min(testSpeed, 60)
+                testSpeed = 100 * loopCall
+                testSpeed = min(testSpeed, 600)
             
             self.motorLeft.setSpeed(testSpeed)
             self.motorRight.setSpeed(testSpeed)
@@ -315,7 +319,7 @@ class PicoMowerDriver:
             while time.ticks_diff(testTime, time.ticks_ms()) >= 0:
                 if time.ticks_diff(nextInfoTime, time.ticks_ms()) <= 0:
                     nextInfoTime = time.ticks_add(time.ticks_ms(), 100)
-                    print(f"left pwm: {int(100*self.motorLeft.currentTrqPwm/65535)} left sp: {testSpeed/100} left: {self.motorLeft.currentSpeedLp} right pwm: {int(100*self.motorRight.currentTrqPwm/65535)} right sp: {testSpeed/100} right: {self.motorRight.currentSpeedLp}")
+                    print(f"left pwm: {int(100*self.motorLeft.currentTrqPwm/65535)} left sp: {testSpeed} left: {self.motorLeft.currentSpeed} left rpm sp: {self.motorLeft.currentRpmSetPoint} left rpm: {self.motorLeft.currentRpm} right pwm: {int(100*self.motorRight.currentTrqPwm/65535)} right sp: {testSpeed} right: {self.motorRight.currentSpeed} right rpm sp: {self.motorRight.currentRpmSetPoint} right rpm: {self.motorRight.currentRpm}")
                 self.motorLeft.run()
                 self.motorRight.run()
                 time.sleep(0.003)
@@ -345,10 +349,10 @@ class PicoMowerDriver:
             else:
                 return
             if DEBUG:
-                self.debugMessages.append(f"leftPwm={leftPwm}, rightPwm={rightPwm}, mow={mowPwm}, leftSpeed={leftSpeed}cm/s, rightSpeed={rightSpeed}cm/s")
+                self.debugMessages.append(f"leftPwm={leftPwm}, rightPwm={rightPwm}, mow={mowPwm}, leftSpeed={leftSpeed}mm/s, rightSpeed={rightSpeed}mm/s")
             if PICOMOTORCONTROL:
-                self.motorLeft.setSpeed(leftSpeed)
-                self.motorRight.setSpeed(rightSpeed)
+                self.motorLeft.setSpeed(int(leftSpeed))
+                self.motorRight.setSpeed(int(rightSpeed))
                 self.motorMow.setSpeed(mowPwm)
             else:
                 self.motorLeft.setSpeed(leftPwm)
@@ -356,6 +360,7 @@ class PicoMowerDriver:
                 self.motorMow.setSpeed(mowPwm)
             self.motorTimeout = time.ticks_add(time.ticks_ms(), 3000)
             s = f"M,{self.motorRight.odomTicks},{self.motorLeft.odomTicks},{self.motorMow.odomTicks},{self.chgVoltage},{int(self.bumper)},{int(self.lift)},{int(self.stopButton)}"
+            #s = f"t1:{self.time1} t2:{self.time2} t3:{self.time3} t4:{self.time4} t5:{self.time5} t6:{self.time6} t7:{self.time7}"
             self.cmdAnswer(s)
         except Exception as e:
             print(f"Command motor invalid. Exception: {e}")
@@ -413,7 +418,7 @@ class PicoMowerDriver:
         self.motorLeft.stop()
         self.motorRight.stop()
         self.motorMow.stop()
-        self.buzzer.programState = "shutdown"
+        self.buzzer.mainUnitState = "shutdown"
         self.buzzer.playShutdown(60000)
         self.requestShutdown = True
         self.lcdPrioMessage = True
@@ -433,28 +438,40 @@ class PicoMowerDriver:
     
     def sunrayStateToText(self, sunrayState: int) -> str:
         if sunrayState == 0:
+            self.mainUnitState = "idle"
             return "idle"
         elif sunrayState == 1:
+            self.mainUnitState = "mow"
             return "mow"
         elif sunrayState == 2:
+            self.mainUnitState = "charge"
             return "charge"
         elif sunrayState == 3:
+            self.mainUnitState = "error"
             return "error"
         elif sunrayState == 4:
+            self.mainUnitState = "dock"
             return "dock"
         elif sunrayState == 5:
+            self.mainUnitState = "escape forward"
             return "escape forward"
         elif sunrayState == 6:
+            self.mainUnitState = "escape reverse"
             return "escape reverse"
         elif sunrayState == 7:
-            return "gps revovery"
+            self.mainUnitState = "gps recovery"
+            return "gps recovery"
         elif sunrayState == 8:
+            self.mainUnitState = "gps wait fix"
             return "gps wait fix"
         elif sunrayState == 9:
+            self.mainUnitState = "gps wait float"
             return "gps wait float"
         elif sunrayState == 10:
+            self.mainUnitState = "imu calibration"
             return "imu calibration"
         elif sunrayState == 11:
+            self.mainUnitState = "kidnap wait"
             return "kidnap wait"
         else:
             return "unknown"
@@ -514,34 +531,37 @@ class PicoMowerDriver:
               f"rain={self.rainLp, self.raining}, "
               f"stop={self.stopButton}, "
               f"rightSp={self.motorRight.currentSpeedSetPoint}, "
-              f"right={self.motorRight.currentSpeedLp}, "
+              f"right={self.motorRight.currentSpeed}, "
               f"rightPwm={self.motorRight.currentPwm}, "
               f"leftSp={self.motorLeft.currentSpeedSetPoint}, "
-              f"left={self.motorLeft.currentSpeedLp}, "
+              f"left={self.motorLeft.currentSpeed}, "
               f"leftPwm={self.motorLeft.currentPwm}, "
               f"speedMow={self.motorMow.currentRpmSetPoint}, "
-              f"mow={self.motorMow.currentRpmLp}, "
+              f"mow={self.motorMow.currentRpm}, "
               f"mowPwm={self.motorMow.currentPwm}"
               ))
         self.lps = 0
     
     def readSensors(self) -> None:
         # battery voltage
-        w = 0.99
+        w = 99
         try:
             if not HIL:
-                self.batVoltage = self.inabat.bus_voltage + self.inabat.shunt_voltage 
+                batVoltage = int((self.inabat.bus_voltage + self.inabat.shunt_voltage) * 1000) #mV
             else:
-                self.batVoltage = 28.0
+                batVoltage = 28000 #mV
         except Exception as e:
             print(f"Error while reading INA(Battery) data: {e}")
-            self.batVoltage = 0
-        self.batVoltageLp = w * self.batVoltageLp + (1 - w) * self.batVoltage
+            batVoltage = 0
+        batVoltageLp = int((self.batVoltageLp) * 1000)
+        batVoltageLp = (w * batVoltageLp + (100 - w) * batVoltage) // 100
+        #scale to V
+        self.batVoltage = round(batVoltage / 1000, 2)
+        self.batVoltageLp = round(batVoltageLp / 1000, 2)
 
         # rain 
-        w = 0.99
         self.rain = self.pinRain.read_u16()
-        self.rainLp = int(w * self.rainLp + (1 - w) * self.rain)
+        self.rainLp = int(w * self.rainLp + (100 - w) * self.rain) // 100
         self.raining = int((((self.rainLp * 100) / 65535) < 50))
 
         # lift
@@ -582,18 +602,17 @@ class PicoMowerDriver:
             print(f"Error while reading INA(Motors) data: {e}")
         
     def mainLoop(self) -> None:
+        loopCnt = 0
         while not self.stopLoop:
-            self.buzzer.run(self.mainProgramState)
-            self.motorLeft.run()
-            self.motorRight.run()
+            # run
+            time1 = loopTime = time.ticks_ms()
             self.motorMow.run()
-            
-            # sensor measure time (50Hz)
-            if time.ticks_diff(self.nextMotorControlTime, time.ticks_ms()) <= 0:
-                self.nextMotorControlTime = time.ticks_add(time.ticks_ms(), 20)
-                self.readSensorHighFrequency()
+            self.motorRight.run()
+            self.motorLeft.run()
+            time1 = time.ticks_diff(time.ticks_ms(), time1)
             
             # motor timeout
+            time2 = time.ticks_ms()
             if time.ticks_diff(self.motorTimeout, time.ticks_ms()) <= 0: 
                 self.led.value(1)
                 self.motorLeft.setSpeed(0)
@@ -601,24 +620,31 @@ class PicoMowerDriver:
                 self.motorMow.setSpeed(0)
             else:
                 self.led.value(0)
+            time2 = time.ticks_diff(time.ticks_ms(), time2)
             
             # keep power on time (1Hz)
+            time3 = time.ticks_ms()
             if time.ticks_diff(self.nextKeepPowerOnTime, time.ticks_ms()) <= 0:
                 self.nextKeepPowerOnTime = time.ticks_add(time.ticks_ms(), 1000)
                 self.keepPowerOn()
-            
-            # next measure time for sensors
-            if time.ticks_diff(self.nextBatTime, time.ticks_ms()) <= 0:
-                self.nextBatTime = time.ticks_add(time.ticks_ms(), 100)
-                self.readSensors()
+            time3 = time.ticks_diff(time.ticks_ms(), time3)
             
             # next measure time for motor current
+            time4 = time.ticks_ms()
             if time.ticks_diff(self.nextMotorSenseTime, time.ticks_ms()) <= 0:
                 self.nextMotorSenseTime = time.ticks_add(time.ticks_ms(), 100)
                 self.readMotorCurrent()
+            time4 = time.ticks_diff(time.ticks_ms(), time4)
             
+            time5 = time.ticks_ms()
             self.processConsole()
+            time5 = time.ticks_diff(time.ticks_ms(), time5)
             self.lps += 1
+            loopCnt += 1
+            loopTimeDiff = time.ticks_diff(time.ticks_ms(), loopTime)
+            if loopTimeDiff > 20 and INFO:
+                print(f"mainLoopTime: {loopTimeDiff}ms motorControlTime:{time1}ms motorTimeoutTime:{time2}ms keepPowerOnTime:{time3}ms motorSenseTime:{time4}ms processConsoleTime:{time5}ms loopRatio: {1/loopCnt}")
+                loopCnt = 0
             if WATCHDOG: self.wdt.feed()
 
     def printLcd(self) -> None:
@@ -626,14 +652,18 @@ class PicoMowerDriver:
             self.lcdPrioMessage = False
             self.lcd.move_to(0, 0)
             self.lcd.putstr(self.prepareLcdMessage(self.lcdPrio1))
+            self.lcd1Printed = self.lcdPrio1
             self.lcd.move_to(0, 1)
             self.lcd.putstr(self.prepareLcdMessage(self.lcdPrio2))
+            self.lcd2Printed = self.lcdPrio2
             return
-        if time.ticks_diff(self.lcdPrioMessageTime, time.ticks_ms()) <= 0:
+        if time.ticks_diff(self.lcdPrioMessageTime, time.ticks_ms()) <= 0 and (self.lcd1 != self.lcd1Printed or self.lcd2 != self.lcd2Printed):
             self.lcd.move_to(0, 0)
             self.lcd.putstr(self.prepareLcdMessage(self.lcd1))
+            self.lcd1Printed = self.lcd1
             self.lcd.move_to(0, 1)
             self.lcd.putstr(self.prepareLcdMessage(self.lcd2))
+            self.lcd2Printed = self.lcd2
     
     def prepareLcdMessage(self, message: str) -> str:
         if len(message) < LCD_NUM_COLUMNS:
@@ -651,16 +681,47 @@ class PicoMowerDriver:
             print(message)    
 
     def secondLoop(self) -> None:
+        loopCnt = 0
         while not self.stopLoop:
+            # sensor measure time (50Hz)
+            time1 = loopTime = time.ticks_ms()
+            if time.ticks_diff(self.nextMotorControlTime, time.ticks_ms()) <= 0:
+                self.nextMotorControlTime = time.ticks_add(time.ticks_ms(), 20)
+                self.readSensorHighFrequency()
+            time1 = time.ticks_diff(time.ticks_ms(), time1)
+            # next measure time for sensors
+            time2 = time.ticks_ms()
+            if time.ticks_diff(self.nextBatTime, time.ticks_ms()) <= 0:
+                self.nextBatTime = time.ticks_add(time.ticks_ms(), 500)
+                self.readSensors()
+            time2 = time.ticks_diff(time.ticks_ms(), time2)
+            # buzzer
+            time3 = time.ticks_ms()
+            self.buzzer.run(self.mainUnitState)
+            time3 = time.ticks_diff(time.ticks_ms(), time3)
+            # lcd
+            time4 = time.ticks_ms()
             if LCD and time.ticks_diff(self.nextLcdTime, time.ticks_ms()) < 0:
                 self.nextLcdTime = time.ticks_add(time.ticks_ms(), 1000)
                 self.printLcd()
+            time4 = time.ticks_diff(time.ticks_ms(), time4)
+            # print debug messages
+            time5 = time.ticks_ms()
             self.printDebug()
+            time5 = time.ticks_diff(time.ticks_ms(), time5)
             # next info time (INFOTIME)
+            time6 = time.ticks_ms()
             if time.ticks_diff(self.nextInfoTime, time.ticks_ms()) <= 0:
                 self.nextInfoTime = time.ticks_add(time.ticks_ms(), INFOTIME)    
                 if INFO:
                     self.printInfo()
+            time6 = time.ticks_diff(time.ticks_ms(), time6)
+            loopTimeDiff = time.ticks_diff(time.ticks_ms(), loopTime)
+            loopCnt += 1
+            if loopTimeDiff > 20 and INFO:
+                print(f"secondLoopTime: {loopTimeDiff}ms readSensorHighFrequencyTime:{time1}ms readBatTime:{time2}ms buzzerRunTime:{time3}ms lcdTime:{time4}ms printDebugTime:{time5}ms printInfoTime:{time6} loopRatio: {1/loopCnt}")
+                loopCnt = 0
+            
 
 if __name__ == '__main__':
     landrumowerDriver = PicoMowerDriver()

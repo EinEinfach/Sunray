@@ -17,11 +17,8 @@ class Motor:
     odomTicks = 0
     lastMeasuredTicks = 0
     currentSpeedSetPoint = 0
-    filterFactor = 0.8
     currentSpeed = 0
-    currentSpeedLp = 0
     currentRpm = 0
-    currentRpmLp = 0
     currentRpmSetPoint = 0
     currentPwm = 0
     currentTrqPwm = 0
@@ -36,6 +33,7 @@ class Motor:
     electricalCurrent = 0.0
     overload = False
     overloadTimeout = 0
+    wheelCircumference = int(math.pi * WHEELDIAMETER * 1000) # mm
 
     def __init__(self, 
                  type: str,
@@ -67,7 +65,7 @@ class Motor:
         self.overLoadThreshold = overloadThreshold
         self.motorControl = Pid(self.kP, self.kI, self.kD, 0.01)
     
-    def setSpeed(self, setPoint: float) -> None:
+    def setSpeed(self, setPoint: int) -> None:
         if not self.overload:
             # stop first if direction change
             if self.currentSpeedSetPoint * setPoint < 0:
@@ -83,7 +81,7 @@ class Motor:
                 self.positiveDirection = True
             # decision picontrol or not
             if self.pidControl and self.type == 'gear':
-                self.currentRpmSetPoint = abs(60 * setPoint/(100 * math.pi * WHEELDIAMETER))
+                self.currentRpmSetPoint = abs(60 * setPoint // self.wheelCircumference)
             else:
                 self.currentRpmSetPoint = abs(setPoint)
         else:
@@ -106,17 +104,21 @@ class Motor:
     
     def calcSpeed(self) -> None:
         if time.ticks_diff(self.nextSpeedMeasureTime, time.ticks_ms()) > 0: return
+        currentTime = time.ticks_ms()
+        timeDiff = time.ticks_diff(currentTime, self.lastMeasuredTime)
+        if timeDiff <= 0:
+            return
         currentTicks = self.odomTicks - self.lastMeasuredTicks
         self.lastMeasuredTicks = self.odomTicks
-        self.currentRpm = 60000 * (float(currentTicks)/TICKSPERREVOLUTION) / (time.ticks_diff(time.ticks_ms(), self.lastMeasuredTime))
-        self.currentRpmLp = (self.filterFactor*self.currentRpm + (1-self.filterFactor)*self.currentRpmLp)
-        self.currentSpeed = 1000 * (math.pi * WHEELDIAMETER * float(currentTicks)/TICKSPERREVOLUTION) / (time.ticks_diff(time.ticks_ms(), self.lastMeasuredTime))
-        self.currentSpeedLp = self.filterFactor*self.currentSpeed + (1-self.filterFactor)*self.currentSpeedLp
-        if self.currentRpmLp < 0.01:
-            self.currentRpmLp = 0.0
-            self.currentSpeedLp = 0.0
-        self.lastMeasuredTime = time.ticks_ms()
-        self.nextSpeedMeasureTime = time.ticks_add(time.ticks_ms(), 10)
+        self.currentRpm = (60000 * currentTicks) // (TICKSPERREVOLUTION * timeDiff)
+
+        self.currentSpeed = (1000 * self.wheelCircumference * currentTicks) // (TICKSPERREVOLUTION * timeDiff)
+        if self.currentRpm < 1:
+            self.currentRpm = 0
+            self.currentSpeed = 0
+
+        self.lastMeasuredTime = currentTime
+        self.nextSpeedMeasureTime = time.ticks_add(currentTime, 30)
 
     def control(self) -> None:
         # stop control if driver in reset state
@@ -136,7 +138,7 @@ class Motor:
         if self.pidControl and self.type == 'gear':
             self.mustStopTime = 0
             self.brakeTimeStart = 0
-            output = self.motorControl.control(self.currentRpmSetPoint, self.currentRpmLp)  
+            output = self.motorControl.control(self.currentRpmSetPoint, self.currentRpm)  
             self.currentPwm = self.currentPwm + int(output)
             if self.currentPwm < 0:
                 self.negTrq()
@@ -203,7 +205,7 @@ class Motor:
         if rampFinished:
             self.currentBrakePwm = 65535 if self.brakePinHighActive else 0
             return
-        progress = time.ticks_diff(time.ticks_ms(), self.brakeTimeStart) / self.brakeDuration
+        progress = time.ticks_diff(time.ticks_ms(), self.brakeTimeStart) // self.brakeDuration
         self.currentBrakePwm = int(progress * 65535) if self.brakePinHighActive else int((1 - progress) * 65535)
     
     def driverReset(self) -> None:

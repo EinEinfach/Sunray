@@ -179,8 +179,8 @@ void Motor::setLinearAngularSpeed(float linear, float angular, bool useLinearRam
      linearSpeedSet = linear;
    }
    angularSpeedSet = angular;   
-   rspeed = round((linearSpeedSet + angularSpeedSet * (wheelBaseCm / 100.0 / 2)) * 100);
-   lspeed = round((linearSpeedSet - angularSpeedSet * (wheelBaseCm / 100.0 / 2)) * 100);         
+   rspeed = round((linearSpeedSet + angularSpeedSet * (wheelBaseCm / 100.0 / 2)) * 1000);
+   lspeed = round((linearSpeedSet - angularSpeedSet * (wheelBaseCm / 100.0 / 2)) * 1000);         
    float rSpeedForRpm = linearSpeedSet + angularSpeedSet * (wheelBaseCm /100.0 /2); 
    float lSpeedForRpm = linearSpeedSet - angularSpeedSet * (wheelBaseCm /100.0 /2); 
 
