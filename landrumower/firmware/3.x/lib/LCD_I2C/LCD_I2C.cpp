@@ -16,6 +16,7 @@
 //#include <Print.h>
 //#include <Wire.h>
 #include "LCD_I2C.h"
+#include "config.h"
 #else
 #include <hardware/gpio.h>
 #include <hardware/i2c.h>

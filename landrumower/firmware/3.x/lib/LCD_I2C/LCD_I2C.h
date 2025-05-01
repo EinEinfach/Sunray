@@ -269,7 +269,7 @@ class LCD_I2C {
 	inline void begin() noexcept {
         Wire1.setSDA(I2C1_SDA);
         Wire1.setSCL(I2C1_SCL);
-        Wire1.setClock(400000);
+        Wire1.setClock(I2C1_CLOCK);
         Wire1.begin();
         init();
     } ;

@@ -10,7 +10,8 @@ void setup() {
 }
 
 void loop() {
-  picoDriver.buzzer.run("imu calibration");
-  picoDriver.printLcd("Hello");
-  delay(1);
+  picoDriver.run();
+  //picoDriver.buzzer.run("imu calibration");
+  //picoDriver.printLcd("Hello");
+  //delay(1);
 }
