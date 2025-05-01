@@ -1,2 +1,6 @@
 .DS_Store
 /alfred/build
+landrumower/firmware/2.x/.vscode/extensions.json
+.gitignore
+landrumower/firmware/2.x/.vscode/settings.json
+landrumower/firmware/2.x/.micropico
