@@ -1,10 +1,11 @@
 #include <Arduino.h>
 #include <LCD_I2C.h>
 #include <hardware/uart.h>
+#include <motor.h>
+#include <battery.h>
+#include <digsensor.h>
+#include <ansensor.h>
 #include "buzzer.h"
-#include "motor.h"
-#include "battery.h"
-#include "digsensor.h"
 
 class PicoDriver
 {
@@ -29,9 +30,11 @@ private:
     DigSensor bumperY;
     DigSensor lift;
     DigSensor stop;
+    AnSensor rain;
     void cmdAnswer(String s);
     void cmdVersion();
     void cmdMotor();
+    void cmdSummary();
     void processCmd(bool checkCrc);
     void processConsole();
     void printLcd(String message);

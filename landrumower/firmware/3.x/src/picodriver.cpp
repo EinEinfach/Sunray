@@ -15,7 +15,8 @@ PicoDriver::PicoDriver()
       bumperX(BUMPER_X, false),
       bumperY(BUMPER_Y, false),
       lift(LIFT, false),
-      stop(STOP, false)
+      stop(STOP, false),
+      rain(RAIN, true, RAINSENSOR_THRESHOLD)
 {
     // Initialize
     mainUnitState = "boot";
@@ -34,18 +35,21 @@ void PicoDriver::setup()
     USB.begin(USB_BAUDRATE);
 
     // configure i2c0 (INAs)
+    // configuration of i2c1 is done by LCD_I2C library
     Wire.setSDA(I2C0_SDA);
     Wire.setSCL(I2C0_SCL);
     Wire.setClock(I2C0_CLOCK);
     Wire.setTimeout(2);
     Wire.begin();
-    // configuration of i2c1 is done by LCD_I2C library
     printedMessage = "";
     if (LCD)
     {
         lcd.begin();
         lcd.backlight();
     }
+    motorLeft.setup();
+    motorRight.setup();
+    motorMow.setup();
     USB.print(VER);
     USB.println(VERNR);
 }
@@ -149,6 +153,51 @@ void PicoDriver::cmdMotor()
     cmdAnswer(s);
 }
 
+void PicoDriver::cmdSummary()
+{
+    int counter = 0;
+    int lastCommaIdx = 0;
+    int state = -1;
+    if (cmd.length() > 5)
+    {
+        for (int idx = 0; idx < cmd.length(); idx++)
+        {
+            char ch = cmd[idx];
+            if ((ch == ',') || (idx == cmd.length() - 1))
+            {
+                int intValue = cmd.substring(lastCommaIdx + 1, ch == ',' ? idx : idx + 1).toInt();
+                if (counter == 1)
+                {
+                    state = intValue;
+                }
+            }
+        }
+    }
+    String s = F("S,");
+    s += battery.voltage;
+    s += ",";
+    s += battery.chgVoltage;
+    s += ",";
+    s += battery.chgCurrent;
+    s += ",";
+    s += int(lift.triggered);
+    s += ",";
+    s += int(bumperX.triggered || bumperY.triggered);
+    s += ",";
+    s += int(rain.triggered);
+    s += ",";
+    s += int(motorLeft.overload || motorRight.overload || motorMow.overload);
+    s += ",";
+    s += motorMow.electricalCurrent;
+    s += ",";
+    s += motorLeft.electricalCurrent;
+    s += ",";
+    s += motorRight.electricalCurrent;
+    s += ",";
+    s += battery.temperature;
+    cmdAnswer(s);
+}
+
 void PicoDriver::processCmd(bool checkCrc)
 {
     cmdResponse = "";
@@ -200,8 +249,8 @@ void PicoDriver::processCmd(bool checkCrc)
         return;
     if (cmd[3] == 'V')
         cmdVersion();
-    // if (cmd[3] == 'M')
-    //     //cmdMotor();
+    if (cmd[3] == 'M')
+        cmdMotor();
     // if (cmd[3] == 'E')
     //     //cmdMotorControlTest
     // if (cmd[3] == 'R')

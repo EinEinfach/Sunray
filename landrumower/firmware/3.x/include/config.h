@@ -34,6 +34,7 @@
 #define LCD_NUM_COLUMNS 16
 
 #define BUZZER_LOUDNESS 10 //(0->255)
+#define RAINSENSOR_THRESHOLD 32000 //(0->65535)
 
 /******************************* from here is actually no individuell configuration is needed ********************************/
 // uart
@@ -71,11 +72,12 @@
 #define MOW_PWM 11
 #define MOW_DIR 12
 #define MOW_BRAKE 13
-// bumper, lift, stop
+// bumper, lift, stop, rain
 #define BUMPER_X 18
 #define BUMPER_Y 19
 #define LIFT 20
 #define STOP 21
+#define RAIN 28
 // battery
 #define POWER_SWITCH 22
 
