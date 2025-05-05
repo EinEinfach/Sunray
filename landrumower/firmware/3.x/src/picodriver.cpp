@@ -19,6 +19,9 @@ PicoDriver::PicoDriver()
       rain(RAIN, true, RAINSENSOR_THRESHOLD)
 {
     // Initialize
+    nextInfoTime = 0;
+    lps = 0;
+    lps2 = 0;
     mainUnitState = "boot";
     cmd = "";
     cmdResponse = "";
@@ -33,20 +36,27 @@ void PicoDriver::setup()
     UART.setRX(UART0_RX);
     UART.begin(UART_BAUDRATE);
     USB.begin(USB_BAUDRATE);
-
     // configure i2c0 (INAs)
     // configuration of i2c1 is done by LCD_I2C library
     Wire.setSDA(I2C0_SDA);
     Wire.setSCL(I2C0_SCL);
     Wire.setClock(I2C0_CLOCK);
-    Wire.setTimeout(2);
     Wire.begin();
+
+    // switch power on
+    battery.setup();
+
     printedMessage = "";
     if (LCD)
     {
         lcd.begin();
         lcd.backlight();
     }
+    buzzer.setup();
+    rain.setup();
+    bumperX.setup();
+    bumperY.setup();
+    lift.setup();
     motorLeft.setup();
     motorRight.setup();
     motorMow.setup();
@@ -56,8 +66,15 @@ void PicoDriver::setup()
 
 void PicoDriver::run()
 {
+    battery.run();
     buzzer.run(mainUnitState);
+    rain.run();
+    bumperX.run();
+    bumperY.run();
+    lift.run();
     processConsole();
+    printInfo();
+    lps++;
 }
 
 void PicoDriver::cmdAnswer(String s)
@@ -255,8 +272,8 @@ void PicoDriver::processCmd(bool checkCrc)
     //     //cmdMotorControlTest
     // if (cmd[3] == 'R')
     //     //cmdResetMotorFaults()
-    // if (cmd[3] == 'S')
-    //     //cmdSummary();
+    if (cmd[3] == 'S')
+        cmdSummary();
     // if (cmd[3] == 'Y')
     // {
     //     if (cmd.length() <= 4)
@@ -325,5 +342,36 @@ void PicoDriver::printLcd(String message)
     {
         lcd.print(message);
         printedMessage = message;
+    }
+}
+
+void PicoDriver::printInfo()
+{
+    if (INFO)
+    {
+        int now = millis();
+        if ((nextInfoTime - now) < 0) {
+            USB.printf("tim=%d", now);
+            USB.printf(" lps=%d/%ds", lps, int(INFOTIME/1000));
+            USB.printf(" bat=%fV", battery.voltage);
+            USB.printf(" chg=%fA", battery.chgCurrent);
+            USB.printf(" imp=%d,%d,%d", motorLeft.odomTicks, motorRight.odomTicks, motorMow.odomTicks);
+            USB.printf(" curr=0,0,0");
+            USB.printf(" lift=%d", int(lift.triggered));
+            USB.printf(" bump=%d,%d", int(bumperX.triggered), int(bumperY.triggered));
+            USB.printf(" rain=%d", int(rain.triggered));
+            USB.printf(" stop=%d", stop.triggered);
+            USB.printf(" rightSp=0");
+            USB.printf(" right=0");
+            USB.printf(" rightPwm=0");
+            USB.printf(" leftSp=0");
+            USB.printf(" left=0");
+            USB.printf(" leftPwm=0");
+            USB.printf(" mowSp=0");
+            USB.printf(" mow=0");
+            USB.println(" mowPwm=0");
+            nextInfoTime = now + INFOTIME;
+            lps = 0;    
+        }
     }
 }

@@ -7,7 +7,7 @@
 #define WATCHDOG false
 #define DEBUG true
 #define INFO true
-#define INFOTIME 10000
+#define INFOTIME 1000
 #define HIL false
 #define PICOMOTORCONTROL true
 
@@ -21,12 +21,15 @@
 
 #define FREQ 20000
 #define FREQ_MOW 10000
-#define CURRENTFACTOR 10
 
 #define INABATADRESS 0x40
 #define INAMOWADRESS 0x41
 #define INALEFTADRESS 0x44
 #define INARIGHTADRESS 0x45
+#define INABATSHUNT 0.1
+#define INAMOWSHUNT 0.1
+#define INALEFTSHUNT 0.1
+#define INARIGHTSHUNT 0.1
 
 #define LCD true
 #define LCDADRESS 0x27

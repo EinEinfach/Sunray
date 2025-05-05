@@ -5,7 +5,7 @@
 #include <battery.h>
 #include <digsensor.h>
 #include <ansensor.h>
-#include "buzzer.h"
+#include <buzzer.h>
 
 class PicoDriver
 {
@@ -13,9 +13,11 @@ public:
     PicoDriver();
     void setup();
     void run();
-    Buzzer buzzer;
 
 private:
+    int nextInfoTime;
+    uint lps;
+    uint lps2;
     String mainUnitState;
     String cmd;
     String cmdResponse;
@@ -26,6 +28,7 @@ private:
     Motor motorLeft;
     Motor motorMow;
     Battery battery;
+    Buzzer buzzer;
     DigSensor bumperX;
     DigSensor bumperY;
     DigSensor lift;
@@ -38,4 +41,5 @@ private:
     void processCmd(bool checkCrc);
     void processConsole();
     void printLcd(String message);
+    void printInfo();
 };
