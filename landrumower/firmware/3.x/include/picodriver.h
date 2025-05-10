@@ -38,6 +38,7 @@ private:
     void cmdVersion();
     void cmdMotor();
     void cmdSummary();
+    void cmdShutdown();
     void processCmd(bool checkCrc);
     void processConsole();
     void printLcd(String message);

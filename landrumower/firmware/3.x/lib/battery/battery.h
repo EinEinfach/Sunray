@@ -7,6 +7,9 @@ public:
     Battery(uint8_t pinPowerSwitch);
     uint8_t pinPowerSwitch;
     bool sensorConnected;
+    bool chgConnected;
+    bool requestShutdown;
+    int shutdownRequestTime;
     float voltage;
     float chgVoltage;
     float chgCurrent;
@@ -14,10 +17,12 @@ public:
     void setup();
     void run();
 private:
-    uint32_t nextRunTime;
-    uint32_t nextRunTimeHighFreq;
+    int nextRunTime;
+    int nextRunTimeHighFreq;
     INA226 ina;
     void connectSensor();
     void readVoltage();
     void readCurrent();
+    void checkCharger();
+    void keepPowerOn();
 };

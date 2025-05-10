@@ -13,5 +13,5 @@ public:
     void run();
 
 private:
-    uint32_t nextRunTime;
+    int nextRunTime;
 };

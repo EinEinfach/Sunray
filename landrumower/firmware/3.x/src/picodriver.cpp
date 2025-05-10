@@ -8,9 +8,9 @@
 PicoDriver::PicoDriver()
     : buzzer(PIN_BUZZER),
       lcd(LCD_I2C(LCDADRESS, LCD_NUM_COLUMNS, LCD_NUM_ROWS)),
-      motorRight(RIGHT_IMP, RIGHT_PWM, RIGHT_DIR, RIGHT_PWM),
-      motorLeft(LEFT_IMP, LEFT_PWM, LEFT_DIR, LEFT_PWM),
-      motorMow(MOW_IMP, MOW_PWM, MOW_DIR, MOW_PWM),
+      motorRight(RIGHT_IMP, RIGHT_PWM, RIGHT_DIR, RIGHT_PWM, INARIGHTADRESS, INARIGHTSHUNT),
+      motorLeft(LEFT_IMP, LEFT_PWM, LEFT_DIR, LEFT_PWM, INALEFTADRESS, INALEFTSHUNT),
+      motorMow(MOW_IMP, MOW_PWM, MOW_DIR, MOW_PWM, INAMOWADRESS, INAMOWSHUNT),
       battery(POWER_SWITCH),
       bumperX(BUMPER_X, false),
       bumperY(BUMPER_Y, false),
@@ -215,6 +215,13 @@ void PicoDriver::cmdSummary()
     cmdAnswer(s);
 }
 
+void PicoDriver::cmdShutdown()
+{
+    USB.println("Shutdown request");
+    battery.requestShutdown = true;
+    battery.shutdownRequestTime = millis();
+}
+
 void PicoDriver::processCmd(bool checkCrc)
 {
     cmdResponse = "";
@@ -274,18 +281,18 @@ void PicoDriver::processCmd(bool checkCrc)
     //     //cmdResetMotorFaults()
     if (cmd[3] == 'S')
         cmdSummary();
-    // if (cmd[3] == 'Y')
-    // {
-    //     if (cmd.length() <= 4)
-    //     {
-    //         //cmdTriggerWatchdog(); // for developers
-    //     }
-    //     else
-    //     {
-    //         if (cmd[4] == '3')
-    //         //cmdShutdown();
-    //     }
-    // }
+    if (cmd[3] == 'Y')
+    {
+        if (cmd.length() <= 4)
+        {
+            // cmdTriggerWatchdog(); // for developers
+        }
+        else
+        {
+            if (cmd[4] == '3')
+                cmdShutdown();
+        }
+    }
 }
 
 void PicoDriver::processConsole()
@@ -350,13 +357,15 @@ void PicoDriver::printInfo()
     if (INFO)
     {
         int now = millis();
-        if ((nextInfoTime - now) < 0) {
+        if ((nextInfoTime - now) < 0)
+        {
             USB.printf("tim=%d", now);
-            USB.printf(" lps=%d/%ds", lps, int(INFOTIME/1000));
-            USB.printf(" bat=%fV", battery.voltage);
-            USB.printf(" chg=%fA", battery.chgCurrent);
+            USB.printf(" lps=%d/%ds", lps, int(INFOTIME / 1000));
+            USB.printf(" bat=%.2fV", battery.voltage);
+            USB.printf(" chg=%.2fA", battery.chgCurrent);
+            USB.printf(" chgConnected=%d", int(battery.chgConnected));
             USB.printf(" imp=%d,%d,%d", motorLeft.odomTicks, motorRight.odomTicks, motorMow.odomTicks);
-            USB.printf(" curr=0,0,0");
+            USB.printf(" curr=%.2f,%.2f,%.2f", motorLeft.electricalCurrent, motorRight.electricalCurrent, motorMow.electricalCurrent);
             USB.printf(" lift=%d", int(lift.triggered));
             USB.printf(" bump=%d,%d", int(bumperX.triggered), int(bumperY.triggered));
             USB.printf(" rain=%d", int(rain.triggered));
@@ -371,7 +380,7 @@ void PicoDriver::printInfo()
             USB.printf(" mow=0");
             USB.println(" mowPwm=0");
             nextInfoTime = now + INFOTIME;
-            lps = 0;    
+            lps = 0;
         }
     }
 }

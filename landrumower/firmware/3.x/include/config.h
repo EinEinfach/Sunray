@@ -5,11 +5,11 @@
 #define VER "Landrumower RPI Pico " 
 
 #define WATCHDOG false
-#define DEBUG true
+#define DEBUG false
 #define INFO true
 #define INFOTIME 1000
 #define HIL false
-#define PICOMOTORCONTROL true
+#define PICOMOTORCONTROL false
 
 #define KP 8.0f
 #define KI 0.1f
@@ -26,10 +26,11 @@
 #define INAMOWADRESS 0x41
 #define INALEFTADRESS 0x44
 #define INARIGHTADRESS 0x45
-#define INABATSHUNT 0.1
+#define INABATSHUNT 0.01
 #define INAMOWSHUNT 0.1
 #define INALEFTSHUNT 0.1
 #define INARIGHTSHUNT 0.1
+#define CHGCONNECTEDCURRENT 0.1 // If ina battery measured current smaller then CHGCONNECTEDCURRENT set charger connected state
 
 #define LCD true
 #define LCDADRESS 0x27
