@@ -5,7 +5,7 @@
 #define VER "Landrumower RPI Pico " 
 
 #define WATCHDOG false
-#define DEBUG false
+// #define DEBUG true
 #define INFO true
 #define INFOTIME 1000
 #define HIL false

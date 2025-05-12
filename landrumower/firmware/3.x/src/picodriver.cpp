@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <hardware/uart.h>
 #include <Wire.h>
 #include <LCD_I2C.h>
 #include "config.h"
@@ -31,20 +30,16 @@ PicoDriver::PicoDriver()
 
 void PicoDriver::setup()
 {
-    // configure uart
-    UART.setTX(UART0_TX);
-    UART.setRX(UART0_RX);
-    UART.begin(UART_BAUDRATE);
-    USB.begin(USB_BAUDRATE);
-    // configure i2c0 (INAs)
-    // configuration of i2c1 is done by LCD_I2C library
+    USB.print(VER);
+    USB.print(": ");
+    USB.println(VERNR);
+
+    // // configure i2c0 (INAs)
+    // // configuration of i2c1 is done by LCD_I2C library
     Wire.setSDA(I2C0_SDA);
     Wire.setSCL(I2C0_SCL);
     Wire.setClock(I2C0_CLOCK);
     Wire.begin();
-
-    // switch power on
-    battery.setup();
 
     printedMessage = "";
     if (LCD)
@@ -52,16 +47,23 @@ void PicoDriver::setup()
         lcd.begin();
         lcd.backlight();
     }
-    buzzer.setup();
+    // switch power on
+    battery.setup();
+
+    // initialize sensors and actors
     rain.setup();
+    buzzer.setup();
     bumperX.setup();
     bumperY.setup();
     lift.setup();
     motorLeft.setup();
     motorRight.setup();
     motorMow.setup();
-    USB.print(VER);
-    USB.println(VERNR);
+
+    // configure uart, as last component. Due to conflicts on RP2040 by using same path control ressouces, uart config could be broken if pinMode for other components called after that
+    UART.setTX(UART0_TX);
+    UART.setRX(UART0_RX);
+    UART.begin(UART_BAUDRATE);
 }
 
 void PicoDriver::run()
@@ -72,6 +74,9 @@ void PicoDriver::run()
     bumperX.run();
     bumperY.run();
     lift.run();
+    motorLeft.run();
+    motorRight.run();
+    motorMow.run();
     processConsole();
     printInfo();
     lps++;

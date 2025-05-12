@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <LCD_I2C.h>
-#include <hardware/uart.h>
 #include <motor.h>
 #include <battery.h>
 #include <digsensor.h>

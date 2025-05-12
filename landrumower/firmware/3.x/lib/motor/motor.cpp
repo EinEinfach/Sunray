@@ -8,6 +8,7 @@ Motor::Motor(uint8_t pinImp, uint8_t pinPwm, uint8_t pinDir, uint8_t pinBrake, u
 {
     odomTicks = 0;
     ticksTimeout = 0;
+    messageTimeout = 0;
     overload = false;
     electricalCurrent = 0.0;
     this->pinImp = pinImp;

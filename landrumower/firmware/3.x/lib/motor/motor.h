@@ -21,7 +21,8 @@ private:
     uint8_t pinPwm;
     uint8_t pinDir;
     uint8_t pinBrake;
-    uint ticksTimeout;
+    int messageTimeout;
+    int ticksTimeout;
     INA226 ina;
     void odometryIsr();
     void connectSensor();
