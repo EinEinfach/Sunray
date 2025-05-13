@@ -4,14 +4,14 @@
 
 class Buzzer {
 public:
-    Buzzer(uint pin);
+    Buzzer(uint8_t pin);
     void setup();
     void run(const String& mainUnitState);
     void stopPlaying();
-    void playInfo(uint16_t loudness);
-    void playImuCalibration(uint16_t loudness);
-    void playWarning(uint16_t loudness);
-    void playShutdown(uint16_t loudness);
+    void playInfo(int loudness);
+    void playImuCalibration(int loudness);
+    void playWarning(int loudness);
+    void playShutdown(int loudness);
     void checkPlayPattern(const String& mainUnitState);
 
 private:
@@ -19,8 +19,8 @@ private:
     String mainUnitState = "";
     bool sound = false;
     std::vector<int> playPattern;
-    uint32_t currentTime = 0;
-    uint16_t loudness = 0;
-    uint32_t nextRunTime = 0;
-    uint32_t runFrequency = 20; // in ms
+    int currentTime = 0;
+    int loudness = 0;
+    int nextRunTime = 0;
+    int runFrequency = 20; // in ms
 };

@@ -41,5 +41,6 @@ private:
     void processCmd(bool checkCrc);
     void processConsole();
     void printLcd(String message);
+    void sunrayStateToText(int state);
     void printInfo();
 };

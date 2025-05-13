@@ -2,7 +2,7 @@
 #include "config.h"
 #include "buzzer.h"
 
-Buzzer::Buzzer(uint pin)
+Buzzer::Buzzer(uint8_t pin)
 {
     this->pin = pin;
 }
@@ -20,14 +20,14 @@ void Buzzer::stopPlaying()
     currentTime = 0;
 }
 
-void Buzzer::playInfo(uint16_t loudness)
+void Buzzer::playInfo(int loudness)
 {
     stopPlaying();
     this->loudness = loudness;
     playPattern = {1000};
 }
 
-void Buzzer::playImuCalibration(uint16_t loudness)
+void Buzzer::playImuCalibration(int loudness)
 {
     stopPlaying();
     this->loudness = loudness;
@@ -37,14 +37,14 @@ void Buzzer::playImuCalibration(uint16_t loudness)
         100, -1000, 100};
 }
 
-void Buzzer::playWarning(uint16_t loudness)
+void Buzzer::playWarning(int loudness)
 {
     stopPlaying();
     this->loudness = loudness;
     playPattern = {500, -1000, 500, -1000, 500};
 }
 
-void Buzzer::playShutdown(uint16_t loudness)
+void Buzzer::playShutdown(int loudness)
 {
     stopPlaying();
     this->loudness = loudness;
@@ -75,9 +75,9 @@ void Buzzer::checkPlayPattern(const String &state)
 
 void Buzzer::run(const String &state)
 {
-    uint32_t now = millis();
+    int now = millis();
 
-    if ((int32_t)(now - nextRunTime) >= 0)
+    if ((now - nextRunTime) >= 0)
     {
         nextRunTime = now + runFrequency;
 
@@ -86,7 +86,7 @@ void Buzzer::run(const String &state)
             checkPlayPattern(state);
         }
 
-        if ((int32_t)(now - currentTime) >= 0)
+        if ((now - currentTime) >= 0)
         {
             if (playPattern.empty())
             {
@@ -103,10 +103,12 @@ void Buzzer::run(const String &state)
 
         if (sound)
         {
+            //digitalWrite(pin, HIGH);
             analogWrite(pin, loudness);
         }
         else
         {
+            //digitalWrite(pin, LOW);
             analogWrite(pin, 0);
         }
     }

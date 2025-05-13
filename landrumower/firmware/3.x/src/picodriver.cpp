@@ -7,15 +7,15 @@
 PicoDriver::PicoDriver()
     : buzzer(PIN_BUZZER),
       lcd(LCD_I2C(LCDADRESS, LCD_NUM_COLUMNS, LCD_NUM_ROWS)),
-      motorRight(RIGHT_IMP, RIGHT_PWM, RIGHT_DIR, RIGHT_PWM, INARIGHTADRESS, INARIGHTSHUNT),
-      motorLeft(LEFT_IMP, LEFT_PWM, LEFT_DIR, LEFT_PWM, INALEFTADRESS, INALEFTSHUNT),
-      motorMow(MOW_IMP, MOW_PWM, MOW_DIR, MOW_PWM, INAMOWADRESS, INAMOWSHUNT),
+      motorRight(RIGHT_IMP, RIGHT_PWM, RIGHT_DIR, RIGHT_DIRECTION_HIGH_ACTIVE, RIGHT_BRAKE, RIGHT_BRAKE_HIGH_ACTIVE, INARIGHTADRESS, INARIGHTSHUNT),
+      motorLeft(LEFT_IMP, LEFT_PWM, LEFT_DIR, LEFT_DIRECTION_HIGH_ACTIVE, LEFT_BRAKE, LEFT_BRAKE_HIGH_ACTIVE, INALEFTADRESS, INALEFTSHUNT),
+      motorMow(MOW_IMP, MOW_PWM, MOW_DIR, MOW_DIRECTION_HIGH_ACTIVE, MOW_BRAKE, MOW_BRAKE_HIGH_ACTIVE, INAMOWADRESS, INAMOWSHUNT),
       battery(POWER_SWITCH),
       bumperX(BUMPER_X, false),
       bumperY(BUMPER_Y, false),
       lift(LIFT, false),
       stop(STOP, false),
-      rain(RAIN, true, RAINSENSOR_THRESHOLD)
+      rain(RAIN, false, RAINSENSOR_THRESHOLD)
 {
     // Initialize
     nextInfoTime = 0;
@@ -24,7 +24,6 @@ PicoDriver::PicoDriver()
     mainUnitState = "boot";
     cmd = "";
     cmdResponse = "";
-    motorTimeout = 0;
     buzzer.stopPlaying();
 }
 
@@ -100,6 +99,7 @@ void PicoDriver::cmdVersion()
 {
     String s = F("V,");
     s += F(VER);
+    s += VERNR;
     cmdAnswer(s);
 }
 
@@ -156,7 +156,6 @@ void PicoDriver::cmdMotor()
     USB.print(" rightSpeed=");
     USB.println(rightSpeed);
 #endif
-    motorTimeout = millis() + 3000;
     String s = F("M");
     s += ",";
     s += int(motorLeft.odomTicks);
@@ -173,6 +172,18 @@ void PicoDriver::cmdMotor()
     s += ",";
     s += int(stop.triggered);
     cmdAnswer(s);
+    if (PICOMOTORCONTROL)
+    {
+        motorLeft.setSpeed(leftSpeed);
+        motorRight.setSpeed(rightSpeed);
+        motorMow.setSpeed(mowPwm);
+    }
+    else
+    {
+        motorLeft.setSpeed(leftPwm);
+        motorRight.setSpeed(rightPwm);
+        motorMow.setSpeed(mowPwm);
+    }
 }
 
 void PicoDriver::cmdSummary()
@@ -191,7 +202,10 @@ void PicoDriver::cmdSummary()
                 if (counter == 1)
                 {
                     state = intValue;
+                    mainUnitState = "idle";
                 }
+                counter++;
+                lastCommaIdx = idx;
             }
         }
     }
@@ -200,7 +214,7 @@ void PicoDriver::cmdSummary()
     s += ",";
     s += battery.chgVoltage;
     s += ",";
-    s += battery.chgCurrent;
+    s += abs(battery.chgCurrent);
     s += ",";
     s += int(lift.triggered);
     s += ",";
@@ -357,6 +371,53 @@ void PicoDriver::printLcd(String message)
     }
 }
 
+void PicoDriver::sunrayStateToText(int state)
+{
+    switch (state)
+    {
+    case 0:
+        mainUnitState = "idle";
+        break;
+    case 1:
+        mainUnitState = "charge";
+        break;
+    case 2:
+        mainUnitState = "dock";
+        break;
+    case 3:
+        mainUnitState = "mow";
+        break;
+    case 4:
+        mainUnitState = "gps wait fix";
+        break;
+    case 5:
+        mainUnitState = "gps wait float";
+        break;
+    case 6:
+        mainUnitState = "gps recovery";
+        break;
+    case 7:
+        mainUnitState = "error";
+        break;
+    case 8:
+        mainUnitState = "escape forward";
+        break;
+    case 9:
+        mainUnitState = "escape reverse";
+        break;
+    case 10:
+        mainUnitState = "imu calibration";
+        break;
+    case 11:
+        mainUnitState = "kidnap wait";
+        break;
+    default:
+        mainUnitState = "unknown";
+        break;
+    }
+
+}
+
 void PicoDriver::printInfo()
 {
     if (INFO)
@@ -364,26 +425,28 @@ void PicoDriver::printInfo()
         int now = millis();
         if ((nextInfoTime - now) < 0)
         {
+
             USB.printf("tim=%d", now);
-            USB.printf(" lps=%d/%ds", lps, int(INFOTIME / 1000));
+            USB.printf(" lps=%u/%ds", lps, int(INFOTIME / 1000));
             USB.printf(" bat=%.2fV", battery.voltage);
             USB.printf(" chg=%.2fA", battery.chgCurrent);
             USB.printf(" chgConnected=%d", int(battery.chgConnected));
-            USB.printf(" imp=%d,%d,%d", motorLeft.odomTicks, motorRight.odomTicks, motorMow.odomTicks);
-            USB.printf(" curr=%.2f,%.2f,%.2f", motorLeft.electricalCurrent, motorRight.electricalCurrent, motorMow.electricalCurrent);
+            USB.printf(" imp(l,r,m)=%llu,%llu,%llu", motorLeft.odomTicks, motorRight.odomTicks, motorMow.odomTicks);
+            USB.printf(" curr(l,r,m)=%.2f,%.2f,%.2f", motorLeft.electricalCurrent, motorRight.electricalCurrent, motorMow.electricalCurrent);
             USB.printf(" lift=%d", int(lift.triggered));
             USB.printf(" bump=%d,%d", int(bumperX.triggered), int(bumperY.triggered));
+            USB.printf(" rainRaw=%d", rain.currentValue);
             USB.printf(" rain=%d", int(rain.triggered));
-            USB.printf(" stop=%d", stop.triggered);
-            USB.printf(" rightSp=0");
-            USB.printf(" right=0");
-            USB.printf(" rightPwm=0");
-            USB.printf(" leftSp=0");
-            USB.printf(" left=0");
-            USB.printf(" leftPwm=0");
-            USB.printf(" mowSp=0");
-            USB.printf(" mow=0");
-            USB.println(" mowPwm=0");
+            USB.printf(" stop=%d", int(stop.triggered));
+            USB.printf(" rightSp=%d", motorRight.currentSetPoint);
+            USB.printf(" right=%d", motorRight.currentSpeed);
+            USB.printf(" rightPwm=%d", motorRight.currentTrqPwm);
+            USB.printf(" leftSp=%d", motorLeft.currentSetPoint);
+            USB.printf(" left=%d", motorLeft.currentSpeed);
+            USB.printf(" leftPwm=%d", motorLeft.currentTrqPwm);
+            USB.printf(" mowSp=%d", motorMow.currentSetPoint);
+            USB.printf(" mow=%d", motorMow.currentSpeed);
+            USB.printf(" mowPwm=%d\n", motorMow.currentTrqPwm);
             nextInfoTime = now + INFOTIME;
             lps = 0;
         }

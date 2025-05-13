@@ -22,9 +22,9 @@ void DigSensor::run()
     if ((nextRunTime - now) < 0)
     {
         if (inverse)
-            triggered = digitalRead(pin) != inverse;
-        else
             triggered = digitalRead(pin) == inverse;
+        else
+            triggered = digitalRead(pin) != inverse;
         nextRunTime = now + 500;
     }
 }

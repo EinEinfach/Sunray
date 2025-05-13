@@ -5,10 +5,10 @@
 #define VER "Landrumower RPI Pico " 
 
 #define WATCHDOG false
-// #define DEBUG true
+#define DEBUG true
 #define INFO true
 #define INFOTIME 1000
-#define HIL false
+#define HIL true
 #define PICOMOTORCONTROL false
 
 #define KP 8.0f
@@ -20,7 +20,6 @@
 #define CRITICALVOLTAGE 17
 
 #define FREQ 20000
-#define FREQ_MOW 10000
 
 #define INABATADRESS 0x40
 #define INAMOWADRESS 0x41
@@ -37,7 +36,7 @@
 #define LCD_NUM_ROWS 2
 #define LCD_NUM_COLUMNS 16
 
-#define BUZZER_LOUDNESS 10 //(0->255)
+#define BUZZER_LOUDNESS 255 //(0->255)
 #define RAINSENSOR_THRESHOLD 32000 //(0->65535)
 
 /******************************* from here is actually no individuell configuration is needed ********************************/
@@ -61,21 +60,30 @@
 #define I2C1_SDA 14
 #define I2C1_SCL 15
 #define PIN_BUZZER 26
+// motor gear
+#define TICKSPERREVOLUTION 340
+#define WHEELDIAMETER 0.22
 // motor right
 #define RIGHT_IMP 2
 #define RIGHT_PWM 3
 #define RIGHT_DIR 4
 #define RIGHT_BRAKE 5
+#define RIGHT_DIRECTION_HIGH_ACTIVE false
+#define RIGHT_BRAKE_HIGH_ACTIVE true
 // motor left
 #define LEFT_IMP 6
 #define LEFT_PWM 7
 #define LEFT_DIR 8
 #define LEFT_BRAKE 9
+#define LEFT_DIRECTION_HIGH_ACTIVE true
+#define LEFT_BRAKE_HIGH_ACTIVE true
 // motor mow
 #define MOW_IMP 10
 #define MOW_PWM 11
 #define MOW_DIR 12
 #define MOW_BRAKE 13
+#define MOW_DIRECTION_HIGH_ACTIVE false
+#define MOW_BRAKE_HIGH_ACTIVE true
 // bumper, lift, stop, rain
 #define BUMPER_X 18
 #define BUMPER_Y 19
