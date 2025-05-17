@@ -7,10 +7,11 @@
 class Motor
 {
 public:
-    Motor(uint8_t pinImp, uint8_t pinPwm, uint8_t pinDir, bool positiveDirHighActive, uint8_t pinBrake, bool brakeHighActive, uint8_t inaAddress, float inaShunt);
+    Motor(String type, uint8_t pinImp, uint8_t pinPwm, uint8_t pinDir, bool positiveDirHighActive, uint8_t pinBrake, bool brakeHighActive, uint8_t inaAddress, float inaShunt);
+    String type;
     uint64_t odomTicks;
-    bool overload;
     float electricalCurrent;
+    bool overload;
     int currentPwm;
     int currentTrqPwm;
     int currentBrakePwm;
@@ -25,6 +26,8 @@ private:
     int nextRunTime;
     int nextCurrRunTime;
     bool sensorConnected;
+    float currentThreshold;
+    int overloadTimeout;
     float inaShunt;
     uint8_t pinImp;
     uint8_t pinPwm;
@@ -41,6 +44,9 @@ private:
     PID pid;
     void odometryIsr();
     void connectSensor();
+    void checkTimeout();
+    void readCurrent();
+    void checkOverload();
     void setDriverPins();
     void stop();
     void calcSpeed();

@@ -3,10 +3,10 @@
 #include "config.h"
 #include "motor.h"
 
-
-Motor::Motor(uint8_t pinImp, uint8_t pinPwm, uint8_t pinDir, bool positiveDirHighActive, uint8_t pinBrake, bool brakeHighActive, uint8_t inaAddress, float inaShunt)
+Motor::Motor(String type, uint8_t pinImp, uint8_t pinPwm, uint8_t pinDir, bool positiveDirHighActive, uint8_t pinBrake, bool brakeHighActive, uint8_t inaAddress, float inaShunt)
     : ina(INALEFTADRESS), pid()
 {
+    this->type = type;
     this->pinImp = pinImp;
     this->pinPwm = pinPwm;
     this->pinDir = pinDir;
@@ -19,6 +19,7 @@ Motor::Motor(uint8_t pinImp, uint8_t pinPwm, uint8_t pinDir, bool positiveDirHig
     ticksTimeout = 0;
     messageTimeout = 0;
     overload = false;
+    overloadTimeout = 0;
     electricalCurrent = 0.0;
     currentPwm = 0;
     currentTrqPwm = 0;
@@ -38,7 +39,7 @@ void Motor::setup()
     pinMode(pinPwm, OUTPUT);
     pinMode(pinDir, OUTPUT);
     pinMode(pinBrake, OUTPUT);
-    analogWriteFreq(FREQ);
+    //analogWriteFreq(FREQ);
     analogWriteResolution(16);
     interruptGate = bindArgGateThisAllocate<Motor>(&Motor::odometryIsr, this);
     attachInterrupt(digitalPinToInterrupt(pinImp), interruptGate, RISING);
@@ -46,30 +47,35 @@ void Motor::setup()
         connectSensor();
     else
         sensorConnected = true;
+    if (type == "gear")
+        currentThreshold = OVERLOADCURRENT_GEAR;
+    else
+        currentThreshold = OVERLOADCURRENT_MOW;
     pid.setup(2, 0.0, 0.0, 0, 65535, 10);
 }
 
 void Motor::run()
 {
-    int now = millis();
-    // check motor timeout
-    if ((messageTimeout - now) < 0)
-        stop();
-
-    if ((nextCurrRunTime - now) < 0)
-    {
-        if (!sensorConnected)
-            connectSensor();
-        else
-            electricalCurrent = ina.getCurrent();
-        nextCurrRunTime = now + 100;
-    }
+    checkTimeout();
+    readCurrent();
+    checkOverload();
     calcSpeed();
-    if (PICOMOTORCONTROL) 
+
+    if (PICOMOTORCONTROL)
     {
         currentTrqPwm = currentTrqPwm + pid.coumpute(currentSetPoint, currentSpeed);
     }
     setDriverPins();
+}
+
+void Motor::odometryIsr()
+{
+    if (digitalRead(pinImp) == LOW)
+        return;
+    if (millis() < ticksTimeout)
+        return; // eliminate spikes
+    ticksTimeout = millis() + 1;
+    odomTicks++;
 }
 
 void Motor::connectSensor()
@@ -83,14 +89,47 @@ void Motor::connectSensor()
     ina.configure(inaShunt);
 }
 
-void Motor::odometryIsr()
+void Motor::checkTimeout()
 {
-    if (digitalRead(pinImp) == LOW)
-        return;
-    if (millis() < ticksTimeout)
-        return; // eliminate spikes
-    ticksTimeout = millis() + 1;
-    odomTicks++;
+    int now = millis();
+    if ((messageTimeout - now) < 0)
+        stop();
+}
+
+void Motor::readCurrent()
+{
+    int now = millis();
+    if ((nextCurrRunTime - now) < 0)
+    {
+        if (HIL)
+        {
+            electricalCurrent = 0.5;
+        }
+        else if (!sensorConnected)
+        {
+            connectSensor();
+        }
+        else
+        {
+            electricalCurrent = ina.getCurrent();
+        }
+        nextCurrRunTime = now + 100;
+    }
+}
+
+void Motor::checkOverload()
+{
+    int now = millis();
+    if (electricalCurrent > currentThreshold)
+    {
+        overload = true;
+        stop();
+        overloadTimeout = now + 2000;
+    }
+    else
+    {
+        overload = false;
+    }
 }
 
 void Motor::setDriverPins()
@@ -108,11 +147,15 @@ void Motor::setSpeed(int setPoint)
 {
     int now = millis();
     messageTimeout = now + 3000;
+    if (overload && (overloadTimeout - now) > 0)
+    {
+        return;
+    }
 
     // at first check if direction change
     if ((currentSetPoint * setPoint) < 0)
     {
-        currentSetPoint = abs(setPoint);
+        currentSetPoint = setPoint;
         positiveDirection = !positiveDirection;
         stop();
         pid.reset();
@@ -121,24 +164,23 @@ void Motor::setSpeed(int setPoint)
 
     // check direction of speed
     positiveDirection = false ? setPoint < 0 : true;
-    currentSetPoint = abs(setPoint);
+    currentSetPoint = setPoint;
     if (PICOMOTORCONTROL)
     {
-        currentTrqPwm = pid.coumpute(currentSetPoint, currentSpeed);
+        currentTrqPwm = pid.coumpute(abs(currentSetPoint), currentSpeed);
     }
     else
     {
-        currentTrqPwm = (currentSetPoint * 65535) / 255;
+        currentTrqPwm = (abs(currentSetPoint) * 65535) / 255;
     }
-    USB.printf("Set speed; %d", currentSetPoint);
-    USB.println();
 }
 
 void Motor::calcSpeed()
 {
     int now = millis();
     int timeDelta = now - lastCalcSpeedTime;
-    if (timeDelta > 10) {
+    if (timeDelta > 10)
+    {
         int currentTicks = odomTicks - lastMeasuredOdomTicks;
         lastMeasuredOdomTicks = odomTicks;
         currentRpm = (60000 * currentTicks) / (TICKSPERREVOLUTION * timeDelta);
@@ -147,7 +189,6 @@ void Motor::calcSpeed()
 
         lastCalcSpeedTime = now;
     }
-
 }
 
 void Motor::stop()
