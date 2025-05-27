@@ -5,7 +5,7 @@
 #define VER "Landrumower RPI Pico " 
 
 #define WATCHDOG false
-////  #define DEBUG true 
+// #define DEBUG true 
 #define INFO true
 #define INFOTIME 1000
 #define HIL false
@@ -36,7 +36,7 @@
 #define LCD_NUM_ROWS 2
 #define LCD_NUM_COLUMNS 16
 
-#define BUZZER_LOUDNESS 255 //(0->255)
+#define BUZZER_LOUDNESS 65535 //(0->65535)
 #define RAINSENSOR_THRESHOLD 32000 //(0->65535)
 
 /******************************* from here is actually no individuell configuration is needed ********************************/
@@ -68,14 +68,14 @@
 #define RIGHT_PWM 3
 #define RIGHT_DIR 4
 #define RIGHT_BRAKE 5
-#define RIGHT_DIRECTION_HIGH_ACTIVE false
+#define RIGHT_DIRECTION_HIGH_ACTIVE true
 #define RIGHT_BRAKE_HIGH_ACTIVE true
 // motor left
 #define LEFT_IMP 6
 #define LEFT_PWM 7
 #define LEFT_DIR 8
 #define LEFT_BRAKE 9
-#define LEFT_DIRECTION_HIGH_ACTIVE true
+#define LEFT_DIRECTION_HIGH_ACTIVE false
 #define LEFT_BRAKE_HIGH_ACTIVE true
 // motor mow
 #define MOW_IMP 10

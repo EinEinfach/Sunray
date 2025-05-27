@@ -39,7 +39,7 @@ void Motor::setup()
     pinMode(pinPwm, OUTPUT);
     pinMode(pinDir, OUTPUT);
     pinMode(pinBrake, OUTPUT);
-    //analogWriteFreq(FREQ);
+    analogWriteFreq(FREQ);
     analogWriteResolution(16);
     interruptGate = bindArgGateThisAllocate<Motor>(&Motor::odometryIsr, this);
     attachInterrupt(digitalPinToInterrupt(pinImp), interruptGate, RISING);
@@ -136,7 +136,15 @@ void Motor::setDriverPins()
 {
     currentTrqPwm = std::max(0, std::min(currentTrqPwm, 65535));
     currentBrakePwm = std::max(0, std::min(currentBrakePwm, 65535));
-    bool dirState = positiveDirection ? positiveDirHighActive : !positiveDirHighActive;
+    bool dirState = false;
+    if (positiveDirection)
+    {
+        dirState = positiveDirHighActive ? HIGH : LOW;
+    }
+    else
+    {
+        dirState = positiveDirHighActive ? LOW : HIGH;
+    }
     digitalWrite(pinDir, dirState);
     analogWrite(pinPwm, currentTrqPwm);
     // analogWrite(pinBrake, currentBrakePwm);
@@ -152,11 +160,10 @@ void Motor::setSpeed(int setPoint)
         return;
     }
 
-    // at first check if direction change
+    // check if direction change
     if ((currentSetPoint * setPoint) < 0)
     {
         currentSetPoint = setPoint;
-        positiveDirection = !positiveDirection;
         stop();
         pid.reset();
         return;

@@ -727,12 +727,12 @@ void Motor::test(){
       if(motorLeftTicks >= stopTicks)
       {
         pwmLeft = 0;
-        speedRight = 0;
+        speedLeft = 0;
       }  
       if(motorRightTicks >= stopTicks)
       {
         pwmRight = 0;      
-        speedLeft = 0;
+        speedRight = 0;
       }
       
       speedPWM(pwmLeft, pwmRight, 0, speedRight, speedLeft);
