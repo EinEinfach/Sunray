@@ -300,6 +300,7 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 // https://wiki.ardumower.de/index.php?title=Ardumower_Sunray#Automatic_battery_switch_off
 #define BAT_SWITCH_OFF_IDLE  false         // switch off if idle (JP8 must be set to autom.)
 #define BAT_SWITCH_OFF_UNDERVOLTAGE  true  // switch off if undervoltage (JP8 must be set to autom.)
+#define BAT_SWITCH_OFF_UNDERVOLTAGE_VOLTAGE 14.0 // switch off if battery voltage is below this value (volts) - NOTE: this is only used if BAT_SWITCH_OFF_UNDERVOLTAGE is true. In master branch hard coded in battery.cpp
 
 
 // ------ GPS ------------------------------------------
