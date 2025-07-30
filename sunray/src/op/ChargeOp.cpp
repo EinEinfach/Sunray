@@ -111,6 +111,7 @@ void ChargeOp::onChargerDisconnected(){
 
 
 void ChargeOp::onChargerConnected(){
+    maps.clearObstacles(); // clear obstacles when charger connected
     if (retryTouchDock){
         CONSOLE.println("ChargeOp: retryTouchDock succeeded");        
         motor.setLinearAngularSpeed(0, 0);

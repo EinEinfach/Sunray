@@ -1004,10 +1004,6 @@ bool Map::startMowing(float stateX, float stateY){
 
 
 void Map::clearObstacles(){ 
-  if (obstacles.numPolygons < OBSTACLE_MAX_NUMBER){
-    CONSOLE.println("clearObstacles: max number of obstacles not reached");
-    return;
-  }
   CONSOLE.println("clearObstacles");
   obstacles.dealloc();  
 }
