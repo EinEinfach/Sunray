@@ -357,6 +357,7 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 #define OBSTACLE_AVOIDANCE true   // try to find a way around obstacle
 //#define OBSTACLE_AVOIDANCE false  // stop robot on obstacle
 #define OBSTACLE_DIAMETER 1.2   // choose diameter of obstacles placed in front of robot (m) for obstacle avoidance
+#define OBSTACLE_MAX_NUMBER 10  // maximum number of obstacles to store in memory (if more obstacles detected, all obstacles will be cleared)
 
 // detect robot being kidnapped? robot will try GPS recovery if distance to tracked path is greater than a certain value
 // (false GPS fix recovery), and if that fails go into error 
