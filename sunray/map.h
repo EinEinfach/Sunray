@@ -68,6 +68,8 @@ class PolygonList // owns polygons!
      long crc();
      bool read(File &file);
      bool write(File &file);
+
+     PolygonList copy() const;
 };
 
 class Node   // nodes just hold references to points and other nodes
@@ -145,6 +147,7 @@ class Map
     Polygon freePoints;
     PolygonList exclusions;     
     PolygonList obstacles;     
+    PolygonList obstaclesCpy;
     PolygonList pathFinderObstacles;
     NodeList pathFinderNodes;
     File mapFile;
