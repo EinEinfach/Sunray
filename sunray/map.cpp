@@ -1102,6 +1102,10 @@ bool Map::addObstacle(float stateX, float stateY){
     CONSOLE.println("error: too many obstacles");
     return false;
   }
+  if (obstaclesCpy.numPolygons > 0) {
+    obstacles.copy(obstaclesCpy); // copy obstacles to obstaclesCpy
+    obstaclesCpy.dealloc(); // free obstaclesCpy
+  }
   int idx = obstacles.numPolygons;
   if (!obstacles.alloc(idx+1)) return false;
   if (!obstacles.polygons[idx].alloc(8)) return false;
