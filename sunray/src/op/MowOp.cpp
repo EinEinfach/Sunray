@@ -239,7 +239,15 @@ void MowOp::onMotorError(){
 
 void MowOp::onTargetReached(){
     if (maps.wayMode == WAY_MOW){    
-        maps.clearObstacles(); // clear obstacles if target reached
+        if (maps.obstacles.numPolygons > 10) {
+            maps.clearObstacles();
+            maps.obstaclesCpy.dealloc();
+        } else if (maps.obstacles.numPolygons > 0){
+            maps.obstaclesCpy = maps.obstacles.copy();
+            maps.clearObstacles();
+            CONSOLE.print("**********: ");
+            CONSOLE.println(maps.obstaclesCpy.numPolygons);
+        }
         motorErrorCounter = 0; // reset motor error counter if target reached
         stateSensor = SENS_NONE; // clear last triggered sensor
     }

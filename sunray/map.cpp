@@ -327,6 +327,17 @@ bool PolygonList::write(File &file){
   return true;  
 }
 
+PolygonList PolygonList::copy() const {
+  PolygonList result(numPolygons);
+  for (int i = 0; i < numPolygons; i++) {
+    result.polygons[i].alloc(polygons[i].numPoints);
+    for (int j = 0; j < polygons[i].numPoints; j++) {
+      result.polygons[i].points[j].assign(polygons[i].points[j]);
+    }
+  }
+  return result;
+}
+
 
 // -----------------------------------
 
