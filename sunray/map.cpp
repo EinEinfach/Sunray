@@ -1103,7 +1103,7 @@ bool Map::addObstacle(float stateX, float stateY){
     return false;
   }
   if (obstaclesCpy.numPolygons > 0) {
-    obstacles.copy(obstaclesCpy); // copy obstacles to obstaclesCpy
+    obstacles = obstaclesCpy.copy(); // copy obstacles to obstaclesCpy
     obstaclesCpy.dealloc(); // free obstaclesCpy
   }
   int idx = obstacles.numPolygons;
