@@ -294,7 +294,7 @@ Also, you may choose the serial port below for serial monitor output (CONSOLE).
 
 #define GO_HOME_VOLTAGE   16.5  // start going to dock below this voltage
 // The battery will charge if both battery voltage is below that value and charging current is above that value.
-#define BAT_FULL_VOLTAGE  20.0  // start mowing again at this voltage
+#define BAT_FULL_VOLTAGE  20.5  // start mowing again at this voltage
 #define BAT_FULL_CURRENT  0.2   // start mowing again below this charging current (amps)
 
 // https://wiki.ardumower.de/index.php?title=Ardumower_Sunray#Automatic_battery_switch_off
