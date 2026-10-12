@@ -61,16 +61,24 @@ landrumower/firmware/4.x/
 
 ## Stand von 4.x
 
-- Fertig mit Tests: `protocol` (AT-Parser, CRC, Antworten, Zeilenleser) und `pid`.
-- `src/main.cpp` beantwortet bisher `AT+V` echt und `AT+M`/`AT+S` mit leeren Berichten. Alle anderen Features fehlen noch.
-- Auf dem Pico am Tisch geflasht und über USB geprüft (11.10.2026): Antworten und CRCs stimmen, 200 `AT+M` im 20-ms-Takt ohne Verlust. Der UART zum Pi ist ungetestet.
-- Flashen mit `pio run -e pico -t upload` (Port `/dev/cu.usbmodem1101`). Läuft 4.x bereits, wechselt der Upload selbst in den Bootloader. Lief vorher MicroPython, muss der Pico erst über die REPL mit `machine.bootloader()` oder per BOOTSEL-Taste in den Bootloader.
-- Strenger als 2.x/3.x: Ein vorhandener, aber falscher CRC wird auch über USB abgelehnt. `landrumower/sim/sim_sunray_comm.py` sendet einen falschen CRC und passt deshalb nicht zu 4.x.
+- Fertig mit Tests (89 native Tests): `protocol`, `pid`, `encoder` (Drehzahl aus dem Abstand der Impulse), `motor` (Regler, Stopp, Bremsen, Umkehr, Timeout, Motormodell), `mower_state`, `buzzer` (Muster je Status), `lcd` (Inhalt, Prioritätsmeldungen, eigener PCF8574-Treiber).
+- `src/main.cpp`: Regelschleife auf Core 0 alle 5 ms, LCD, Buzzer, Telemetrie (`D,...`) und Info (`I,...`) über USB auf Core 1, Datenaustausch über einen Mutex, auf den Core 0 nie wartet. `AT+V` und `AT+M` sind echt, `AT+S` übernimmt PID-Werte, liefert aber noch leere Werte. `AT+R`, `AT+E`, `AT+Y`, `AT+Y3` fehlen.
+- Fehlt noch: Sensoren (Bumper, Lift, Stop, Regen), INA226, Batterie (damit auch die zweite LCD-Zeile), Überstrom mit Treiber-Recovery, Watchdog, Shutdown. Die Prioritätsmeldungen des LCD ("shutdown", "motor drivers recovery") sind vorbereitet, aber noch von nichts ausgelöst.
+- LCD und Buzzer am Tisch (11.10.2026): Das LCD antwortet am I2C (Adresse 0x27, I2C1 auf GP14/GP15) und nimmt alle Schreibvorgänge an. Der Regeltakt bleibt dabei bei 5,0 ms, längster Abstand 5,8 ms. Ob der Text lesbar ist und der Buzzer hörbar, kann nur der Nutzer bestätigen; das steht noch aus.
+- Der Buzzer wird nur ein- und ausgeschaltet, ohne PWM und ohne Lautstärke: GP26 teilt sich die PWM-Slice 5 mit dem Mäh-PWM auf GP11. 3.x hat ihn faktisch auch nur voll eingeschaltet, deshalb die Annahme, dass es ein aktiver Buzzer ist.
+- Geprüft auf dem Pico am Tisch mit `pico_sim` und `landrumower/sim/sunray_sim.py` (11.10.2026): Sollwerte 300, 100, -300, 0 mm/s werden erreicht, Umkehr läuft über Stillstand, keine verlorenen Antworten, keine CRC-Fehler, Regeltakt 5,0 ms mit längstem Abstand 5,6 ms.
+- **Ungetestet, weil die Hardware fehlt:** `JyqdDriver` (PWM über das Pico SDK) und `PinEncoder` (Interrupt) laufen nur im `pico`-Build und wurden nie an echten Treibern betrieben. Ebenso der UART zum Pi und das PWM-Bremsen. Die Reglerwerte (`MOTOR_KP` 0.002, `MOTOR_KI` 0.02) passen zum Motormodell, nicht zum echten Motor.
+- Auf dem Pico am Tisch ist aktuell der `pico_sim`-Build geflasht.
+- Der Encoder liefert nur Impulse ohne Richtung (340 pro Radumdrehung, etwa 150 pro Sekunde bei 0,3 m/s). Die gemessene Geschwindigkeit ist deshalb immer positiv, und die Ticks an Sunray zählen nur aufwärts.
+- Die Reglerwerte aus `AT+S` haben in 4.x die Einheit Duty (0..1) pro mm/s. Werte, die für den Sunray-eigenen PID gedacht sind, passen nicht.
+- Flashen mit `pio run -e pico_sim -t upload` (Port `/dev/cu.usbmodem1101`). Läuft 4.x bereits, wechselt der Upload selbst in den Bootloader. Lief vorher MicroPython, muss der Pico erst über die REPL mit `machine.bootloader()` oder per BOOTSEL-Taste in den Bootloader.
+- Strenger als 2.x/3.x: Ein vorhandener, aber falscher CRC wird auch über USB abgelehnt. Das alte `landrumower/sim/sim_sunray_comm.py` sendet einen falschen CRC und passt deshalb nicht zu 4.x.
+- Die dritte Testebene (simulierte Encoder-Impulse über eine Drahtbrücke auf den echten Eingang) ist nicht umgesetzt.
 
 ## Werkzeuge und Konventionen
 
 - PlatformIO liegt in der Projekt-venv: `.venv/bin/pio` (Core 6.1.18). Die earlephilhower-Toolchain für den Pico ist bereits installiert.
-- Aus `landrumower/firmware/4.x`: Tests mit `../../../.venv/bin/pio test -e native`, Firmware bauen mit `../../../.venv/bin/pio run -e pico -e pico_sim`.
+- Aus `landrumower/firmware/4.x`: Tests mit `../../../.venv/bin/pio test -e native`, Firmware bauen mit `../../../.venv/bin/pio run -e pico -e pico_sim`. Sunray-Simulator vom Repo-Wurzelverzeichnis: `.venv/bin/python landrumower/sim/sunray_sim.py`.
 - Code, Kommentare und Commit-Nachrichten auf Englisch. Mit dem Nutzer wird Deutsch gesprochen.
 
 ## Testaufbau für 4.x
