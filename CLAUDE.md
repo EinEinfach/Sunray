@@ -13,7 +13,7 @@ Fork von `Ardumower/Sunray` (`upstream`) für den Eigenbau-Mäher „Landrumower
 ## Aufbau des Mähers (Branch `landrumower-linux`)
 
 - Raspberry Pi 4 mit Sunray als Linux-Build (`alfred/build/sunray`, systemd-Service, siehe `landrumower/readme.md`).
-- Raspberry Pi Pico als Motor- und Sensor-MCU auf eigener KiCad-Platine (`landrumower/schematics/`). Angenommen wird ein Pico 1 (RP2040) ohne W; am Chipaufdruck noch nicht bestätigt.
+- Raspberry Pi Pico als Motor- und Sensor-MCU auf eigener KiCad-Platine (`landrumower/schematics/`). Es ist ein Pico 1 (RP2040) ohne W, bestätigt über den Bootloader (`RPI-RP2`, UF2 Bootloader v3.0).
 - Pi ↔ Pico: UART `/dev/ttyS0`, 115200 Baud, AT-Protokoll des `SerialRobotDriver` (`AT+M`, `AT+S`, `AT+V`, dazu eigene `AT+R` und `AT+Y3`). **Das Protokoll bleibt für 4.x unverändert.**
 - Motortreiber: JYQD (bleiben). Strommessung über vier INA226 per I2C, dazu LCD, Buzzer, Bumper, Lift, Stop, Regensensor.
 - Bekannte Platinenfehler und Workarounds: `landrumower/schematics/findings.txt`.
@@ -23,6 +23,7 @@ Fork von `Ardumower/Sunray` (`upstream`) für den Eigenbau-Mäher „Landrumower
 Der Mäher selbst steht nicht zur Verfügung. Auf dem Tisch liegt nur die Hauptplatine mit aufgestecktem Pico, Display und Buzzer. Der Pi ist nicht erreichbar.
 
 - Vorhanden: Pico (Versorgung nur über USB), LCD am I2C, Buzzer.
+- Der Pico ist vom Mac per USB erreichbar (Datenkabel vorhanden). Im BOOTSEL-Modus erscheint er als Laufwerk `RPI-RP2`.
 - Fehlt: alle vier INA226, Motoren, JYQD-Treiber, damit auch Encoder-Impulse.
 - 4.x wird also zunächst am Tisch entwickelt und getestet, ohne Mäher und ohne laufendes Sunray. Der Mac spielt Sunray und schickt die AT-Kommandos über USB.
 - Fehlende Hardware (INA226, Motor mit Encoder) muss in der Firmware simulierbar sein, ohne dass der echte Codepfad dafür umgebaut wird.
@@ -62,7 +63,8 @@ landrumower/firmware/4.x/
 
 - Fertig mit Tests: `protocol` (AT-Parser, CRC, Antworten, Zeilenleser) und `pid`.
 - `src/main.cpp` beantwortet bisher `AT+V` echt und `AT+M`/`AT+S` mit leeren Berichten. Alle anderen Features fehlen noch.
-- Noch nie auf einem Pico gelaufen, nur gebaut.
+- Auf dem Pico am Tisch geflasht und über USB geprüft (11.10.2026): Antworten und CRCs stimmen, 200 `AT+M` im 20-ms-Takt ohne Verlust. Der UART zum Pi ist ungetestet.
+- Flashen mit `pio run -e pico -t upload` (Port `/dev/cu.usbmodem1101`). Läuft 4.x bereits, wechselt der Upload selbst in den Bootloader. Lief vorher MicroPython, muss der Pico erst über die REPL mit `machine.bootloader()` oder per BOOTSEL-Taste in den Bootloader.
 - Strenger als 2.x/3.x: Ein vorhandener, aber falscher CRC wird auch über USB abgelehnt. `landrumower/sim/sim_sunray_comm.py` sendet einen falschen CRC und passt deshalb nicht zu 4.x.
 
 ## Werkzeuge und Konventionen
@@ -99,4 +101,3 @@ Der Mac schickt dabei die AT-Kommandos im 20-ms-Takt wie Sunray. Nicht prüfbar 
 - `origin/tests` existiert noch auf GitHub (lokal gelöscht, letzter Commit `2d966bf`, inhaltlich durch `landrumower` überholt). Löschen nur nach ausdrücklicher Bestätigung.
 - Provisorien in Sunray auf `landrumower-linux`, deren Absicht nicht geklärt ist: festes `return 25` in `SerialBatteryDriver::getBatteryVoltage()` und `battery.chargingCurrent` statt `motor.motorsSenseLP` in `cmdSummary()`. Nicht stillschweigend ändern, erst nachfragen.
 - Ungeklärt: ob eine neue Platinenrevision geplant ist, und welches Tool die eigenen Kommandos `AT+CM` und `AT+E2` an Sunray schickt.
-- Zum Flashen des Pico vom Mac wird ein USB-Kabel mit Datenleitungen gebraucht.

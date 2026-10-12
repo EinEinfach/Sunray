@@ -32,6 +32,15 @@ Raspberry Pi 4 (Sunray)  <-- UART, 115200 baud, AT protocol -->  Pico (this firm
 
 PlatformIO downloads the toolchain and the test framework on first use.
 
+If `pio` is not found, it is not on your `PATH`. When PlatformIO is installed in a Python virtual environment, activate that environment first, for example for a `.venv` in the repository root:
+
+```
+source .venv/bin/activate         # bash, zsh
+source .venv/bin/activate.fish    # fish
+```
+
+Or call it by its path, for example `../../../.venv/bin/pio` from the firmware folder.
+
 All commands below are run in `landrumower/firmware/4.x`.
 
 ### Run the unit tests
