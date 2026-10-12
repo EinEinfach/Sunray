@@ -58,9 +58,17 @@ landrumower/firmware/4.x/
 - Features liegen unter `lib/`, weil PlatformIO sie dort automatisch findet und einzeln für die nativen Tests baut.
 - Testordner brauchen das Präfix `test_`, sonst erkennt PlatformIO sie nicht. Die Spiegelung ist also `lib/motor` zu `test/test_motor`.
 
+## Stand von 4.x
+
+- Fertig mit Tests: `protocol` (AT-Parser, CRC, Antworten, Zeilenleser) und `pid`.
+- `src/main.cpp` beantwortet bisher `AT+V` echt und `AT+M`/`AT+S` mit leeren Berichten. Alle anderen Features fehlen noch.
+- Noch nie auf einem Pico gelaufen, nur gebaut.
+- Strenger als 2.x/3.x: Ein vorhandener, aber falscher CRC wird auch über USB abgelehnt. `landrumower/sim/sim_sunray_comm.py` sendet einen falschen CRC und passt deshalb nicht zu 4.x.
+
 ## Werkzeuge und Konventionen
 
 - PlatformIO liegt in der Projekt-venv: `.venv/bin/pio` (Core 6.1.18). Die earlephilhower-Toolchain für den Pico ist bereits installiert.
+- Aus `landrumower/firmware/4.x`: Tests mit `../../../.venv/bin/pio test -e native`, Firmware bauen mit `../../../.venv/bin/pio run -e pico -e pico_sim`.
 - Code, Kommentare und Commit-Nachrichten auf Englisch. Mit dem Nutzer wird Deutsch gesprochen.
 
 ## Testaufbau für 4.x
